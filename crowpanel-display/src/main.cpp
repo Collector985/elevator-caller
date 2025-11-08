@@ -18,6 +18,102 @@
 
 #include "lgfx_setup.h"
 
+using lgfx::v1::LGFX_Sprite;
+using lgfx::v1::fonts::Font2;
+using lgfx::v1::fonts::Font4;
+using lgfx::v1::textdatum_t;
+
+enum class ThemeVariant : uint8_t { DarkGlass = 0, Blueprint, HighContrast };
+
+struct ThemePalette {
+  const char *name;
+  lv_color_t bgPrimary;
+  lv_color_t bgSecondary;
+  lv_color_t cardBg;
+  lv_color_t cardBorder;
+  lv_color_t textPrimary;
+  lv_color_t textSecondary;
+  lv_color_t indicatorUp;
+  lv_color_t indicatorDown;
+  lv_color_t indicatorLoad;
+  lv_color_t indicatorInactive;
+  lv_color_t elevatorHighlight;
+  lv_color_t shadowColor;
+  const lv_font_t *headingFont;
+  const lv_font_t *floorFont;
+  const lv_font_t *statusFont;
+  const lv_font_t *legendFont;
+};
+
+static const ThemePalette THEME_DARK_GLASS = {
+    "Dark Glass",
+    lv_color_hex(0x050C1C),
+    lv_color_hex(0x111A32),
+    lv_color_hex(0x10192C),
+    lv_color_hex(0x2A395B),
+    lv_color_hex(0xEEF4FF),
+    lv_color_hex(0xA5B4FC),
+    lv_color_hex(0x2ECC71),
+    lv_color_hex(0xFF5F6D),
+    lv_color_hex(0xF8C537),
+    lv_color_hex(0x253147),
+    lv_color_hex(0x4FC3F7),
+    lv_color_hex(0x000000),
+    &lv_font_montserrat_28,
+    &lv_font_montserrat_32,
+    &lv_font_montserrat_20,
+    &lv_font_montserrat_18};
+
+static const ThemePalette THEME_BLUEPRINT = {
+    "Blueprint",
+    lv_color_hex(0x011837),
+    lv_color_hex(0x043F78),
+    lv_color_hex(0x0A2A4F),
+    lv_color_hex(0x1E90FF),
+    lv_color_hex(0xE0F2FF),
+    lv_color_hex(0x9AD4FF),
+    lv_color_hex(0x7CFC00),
+    lv_color_hex(0xFF6B6B),
+    lv_color_hex(0xFFD166),
+    lv_color_hex(0x1D3D63),
+    lv_color_hex(0x64B5F6),
+    lv_color_hex(0x061C3A),
+    &lv_font_montserrat_28,
+    &lv_font_montserrat_32,
+    &lv_font_montserrat_20,
+    &lv_font_montserrat_18};
+
+static const ThemePalette THEME_HIGH_CONTRAST = {
+    "High Contrast",
+    lv_color_hex(0x101010),
+    lv_color_hex(0x1F1F1F),
+    lv_color_hex(0xF5F5F5),
+    lv_color_hex(0x2E2E2E),
+    lv_color_hex(0x111111),
+    lv_color_hex(0x3D3D3D),
+    lv_color_hex(0x2ECC71),
+    lv_color_hex(0xC62828),
+    lv_color_hex(0xF9A825),
+    lv_color_hex(0xC4C4C4),
+    lv_color_hex(0x1565C0),
+    lv_color_hex(0x000000),
+    &lv_font_montserrat_32,
+    &lv_font_montserrat_32,
+    &lv_font_montserrat_20,
+    &lv_font_montserrat_18};
+
+constexpr ThemeVariant DEFAULT_THEME = ThemeVariant::HighContrast;
+const ThemePalette *activeTheme = &THEME_HIGH_CONTRAST;
+ThemeVariant currentTheme = DEFAULT_THEME;
+
+const lv_color_t COLOR_SCREEN_BG = lv_color_black();
+const lv_color_t COLOR_TEXT_MAIN = lv_color_hex(0xFFFFFF);
+const lv_color_t COLOR_BAR_UP = lv_color_hex(0x4CAF50);
+const lv_color_t COLOR_BAR_LOAD = lv_color_hex(0xFFC107);
+const lv_color_t COLOR_BAR_DOWN = lv_color_hex(0xFF5252);
+const lv_color_t COLOR_BAR_INACTIVE = lv_color_hex(0x2A2A2A);
+const lv_color_t COLOR_HIGHLIGHT = lv_color_hex(0x1E88E5);
+
 // Display packet structure (must match gateway)
 struct DisplayPacket {
   uint8_t floor;
@@ -37,47 +133,52 @@ struct FloorState {
 constexpr uint8_t STC_BACKLIGHT_ADDR = 0x30;
 constexpr uint8_t STC_CMD_BUZZER_ON = 246;
 constexpr uint8_t STC_CMD_BUZZER_OFF = 247;
+constexpr uint8_t BUZZER_PIN = 8;
 
 // Global objects
 LGFX tft;
 TwoWire ioBus = TwoWire(1);
 TCA9534 ioExpander;
+LGFX_Sprite textSprite(&tft);
 FloorState floorStates[TOTAL_FLOORS + 1];
 uint8_t currentElevatorFloor = 20;
 
-// LVGL objects
-lv_obj_t *screen;
-lv_obj_t *floorGrid[TOTAL_FLOORS + 1];
-lv_obj_t *floorLabels[TOTAL_FLOORS + 1];
-lv_obj_t *upIndicators[TOTAL_FLOORS + 1];
-lv_obj_t *downIndicators[TOTAL_FLOORS + 1];
-lv_obj_t *loadIndicators[TOTAL_FLOORS + 1];
-lv_obj_t *statusLabel;
+constexpr int ROW_HEIGHT = 18;
+constexpr int ROW_SPACING = 2;
+constexpr int HEADER_HEIGHT = 70;
+constexpr int ROW_LEFT = 12;
+constexpr int BAR_WIDTH = 80;
+constexpr int BAR_HEIGHT = 8;
+constexpr int BAR_SPACING = 8;
 
-// Colors
-lv_color_t COLOR_UP = lv_color_hex(0x2ECC71);      // Green
-lv_color_t COLOR_DOWN = lv_color_hex(0xE74C3C);    // Red
-lv_color_t COLOR_LOAD = lv_color_hex(0xF39C12);    // Yellow
-lv_color_t COLOR_INACTIVE = lv_color_hex(0xBDC3C7); // Light gray
-lv_color_t COLOR_CURRENT = lv_color_hex(0x3498DB);  // Blue highlight
-lv_color_t COLOR_BG = lv_color_hex(0x0B1320);      // Dark slate
-lv_color_t COLOR_CARD_BG = lv_color_hex(0xECF0F1);
-lv_color_t COLOR_BORDER = lv_color_hex(0xBDC3C7);
-lv_color_t COLOR_TEXT = lv_color_hex(0x2C3E50);
+LGFX_Sprite textSprite(&tft);
+bool screenDirty = true;
+char statusLine[64] = "Awaiting data...";
 
 // Function prototypes
 void initDisplay();
 void initLVGL();
-void createFloorGrid();
-void updateFloorDisplay(uint8_t floor);
-void highlightCurrentFloor();
+void renderStatusScreen();
+void drawFloorRow(uint8_t floor, int y);
+void markDisplayDirty();
 void requestDataFromGateway();
 void sendClearCommand(uint8_t floor, uint8_t callType);
-void floorTouchCallback(lv_event_t *e);
 void initBacklightControl();
 bool stcSend(uint8_t value);
 void stcSetBacklight(uint8_t level);
 void stcDisableBuzzer();
+void muteHardwareBuzzer();
+void runLovyanSimpleDemo();
+void applyTheme(ThemeVariant variant);
+const ThemePalette *paletteForVariant(ThemeVariant variant);
+void rebuildUI();
+void resetFloorWidgets();
+void handleSerialCommands();
+void cycleTheme(bool forward = true);
+
+#if LV_USE_LOG
+void lvglLogPrinter(const char *buf);
+#endif
 
 // Timing
 uint32_t lastI2CRequest = 0;
@@ -98,6 +199,8 @@ void setup() {
   Serial.println(F("40-Floor Elevator Operator Interface"));
   Serial.println(F("========================================"));
 
+  applyTheme(DEFAULT_THEME);
+  muteHardwareBuzzer();
   initBacklightControl();
 
   // Initialize I2C as master
@@ -106,12 +209,14 @@ void setup() {
 
   // Initialize display
   initDisplay();
+  runLovyanSimpleDemo();
 
   // Initialize LVGL
   initLVGL();
 
-  // Create UI
-  createFloorGrid();
+  screenDirty = true;
+  renderStatusScreen();
+  screenDirty = false;
 
   uint32_t now = millis();
   lastTickUpdate = now;
@@ -122,6 +227,8 @@ void setup() {
 
 // ============= MAIN LOOP =============
 void loop() {
+  handleSerialCommands();
+
   uint32_t now = millis();
 
   // Keep LVGL tick running even without external timer
@@ -141,15 +248,9 @@ void loop() {
     lastI2CRequest = now;
   }
 
-  // Refresh display every 100ms
-  if (now - lastDisplayRefresh > 100) {
-    for (uint8_t f = 1; f <= TOTAL_FLOORS; f++) {
-      if (now - floorStates[f].lastUpdate < 10000) {  // Only if recent update
-        updateFloorDisplay(f);
-      }
-    }
-    highlightCurrentFloor();
-    lastDisplayRefresh = now;
+  if (screenDirty) {
+    renderStatusScreen();
+    screenDirty = false;
   }
 
   delay(5);
@@ -158,8 +259,8 @@ void loop() {
 // ============= DISPLAY INITIALIZATION =============
 void initDisplay() {
   tft.init();
-  tft.setRotation(0);  // Native landscape
-  tft.setColorDepth(16);
+  tft.setRotation(1);  // Portrait orientation
+  tft.setColorDepth(24);
   tft.setSwapBytes(true);
   tft.fillScreen(0x0000);
 
@@ -171,6 +272,9 @@ void initDisplay() {
 
 void initLVGL() {
   lv_init();
+#if LV_USE_LOG
+  lv_log_register_print_cb(lvglLogPrinter);
+#endif
 
   // Create display buffer
   static lv_disp_draw_buf_t draw_buf;
@@ -203,90 +307,76 @@ void initLVGL() {
 // ============= UI CREATION =============
 void createFloorGrid() {
   screen = lv_scr_act();
-  lv_obj_set_style_bg_color(screen, COLOR_BG, 0);
+  resetFloorWidgets();
 
-  // Grid configuration: 8 columns x 5 rows = 40 floors
-  const int COLS = 8;
-  const int ROWS = 5;
-  const int GRID_MARGIN_X = 24;
-  const int GRID_MARGIN_Y = 20;
-  const int CELL_SPACING = 12;
-  const int GRID_HEIGHT = SCREEN_HEIGHT - GRID_MARGIN_Y * 2 - 40;
-  const int CELL_WIDTH = (SCREEN_WIDTH - GRID_MARGIN_X * 2 - (COLS - 1) * CELL_SPACING) / COLS;
-  const int CELL_HEIGHT = (GRID_HEIGHT - (ROWS - 1) * CELL_SPACING) / ROWS;
-  const int IND_SIZE = 14;  // Indicator size
+  lv_obj_set_style_bg_color(screen, COLOR_SCREEN_BG, 0);
+  lv_obj_set_style_bg_grad_color(screen, COLOR_SCREEN_BG, 0);
+  lv_obj_set_style_bg_grad_dir(screen, LV_GRAD_DIR_VER, 0);
+  lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
 
-  // Create floor cells (top to bottom = floor 40 to floor 1)
-  for (uint8_t row = 0; row < ROWS; row++) {
-    for (uint8_t col = 0; col < COLS; col++) {
-      uint8_t floor = TOTAL_FLOORS - (row * COLS) - (COLS - 1 - col);
+  lv_obj_t *titleLabel = lv_label_create(screen);
+  lv_label_set_text(titleLabel, "FLOOR CALLS");
+  lv_obj_set_style_text_font(titleLabel, activeTheme->headingFont, 0);
+  lv_obj_set_style_text_color(titleLabel, COLOR_TEXT_MAIN, 0);
+  lv_obj_align(titleLabel, LV_ALIGN_TOP_MID, 0, 4);
 
-      if (floor < 1 || floor > TOTAL_FLOORS) continue;
+  floorListContainer = lv_obj_create(screen);
+  lv_obj_remove_style_all(floorListContainer);
+  lv_obj_set_size(floorListContainer, SCREEN_WIDTH - 20, SCREEN_HEIGHT - 60);
+  lv_obj_align(floorListContainer, LV_ALIGN_TOP_MID, 0, 30);
+  lv_obj_set_style_bg_opa(floorListContainer, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_pad_all(floorListContainer, 0, 0);
+  lv_obj_set_style_pad_row(floorListContainer, 1, 0);
+  lv_obj_set_flex_flow(floorListContainer, LV_FLEX_FLOW_COLUMN);
+  lv_obj_clear_flag(floorListContainer, LV_OBJ_FLAG_SCROLLABLE);
 
-      int x = GRID_MARGIN_X + col * (CELL_WIDTH + CELL_SPACING);
-      int y = GRID_MARGIN_Y + row * (CELL_HEIGHT + CELL_SPACING);
+  const lv_font_t *lineFont = &lv_font_unscii_8;
 
-      // Create floor container
-      floorGrid[floor] = lv_obj_create(screen);
-      lv_obj_remove_style_all(floorGrid[floor]);
-      lv_obj_set_size(floorGrid[floor], CELL_WIDTH, CELL_HEIGHT);
-      lv_obj_set_pos(floorGrid[floor], x, y);
-      lv_obj_set_style_border_width(floorGrid[floor], 2, 0);
-      lv_obj_set_style_border_color(floorGrid[floor], COLOR_BORDER, 0);
-      lv_obj_set_style_bg_color(floorGrid[floor], COLOR_CARD_BG, 0);
-      lv_obj_set_style_bg_opa(floorGrid[floor], LV_OPA_COVER, 0);
-      lv_obj_set_style_radius(floorGrid[floor], 10, 0);
-      lv_obj_set_style_pad_hor(floorGrid[floor], 6, 0);
-      lv_obj_set_style_pad_top(floorGrid[floor], 4, 0);
-      lv_obj_set_style_pad_bottom(floorGrid[floor], 6, 0);
-      lv_obj_clear_flag(floorGrid[floor], LV_OBJ_FLAG_SCROLLABLE);
-      lv_obj_set_style_shadow_width(floorGrid[floor], 12, 0);
-      lv_obj_set_style_shadow_ofs_y(floorGrid[floor], 4, 0);
-      lv_obj_set_style_shadow_color(floorGrid[floor], lv_color_hex(0x0c111d), 0);
+  for (int floor = TOTAL_FLOORS; floor >= 1; floor--) {
+    floorRows[floor] = lv_obj_create(floorListContainer);
+    lv_obj_remove_style_all(floorRows[floor]);
+    lv_obj_set_width(floorRows[floor], lv_pct(100));
+    lv_obj_set_height(floorRows[floor], 18);
+    lv_obj_set_style_pad_left(floorRows[floor], 6, 0);
+    lv_obj_set_style_pad_right(floorRows[floor], 6, 0);
+    lv_obj_set_style_pad_column(floorRows[floor], 8, 0);
+    lv_obj_set_style_bg_opa(floorRows[floor], LV_OPA_TRANSP, 0);
+    lv_obj_set_flex_flow(floorRows[floor], LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(floorRows[floor], LV_FLEX_ALIGN_START,
+                          LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_add_event_cb(floorRows[floor], floorTouchCallback, LV_EVENT_CLICKED,
+                        (void *)(intptr_t)floor);
+    lv_obj_add_flag(floorRows[floor], LV_OBJ_FLAG_CLICKABLE);
 
-      // Add touch callback
-      lv_obj_add_event_cb(floorGrid[floor], floorTouchCallback, LV_EVENT_CLICKED, (void*)(intptr_t)floor);
-      lv_obj_add_flag(floorGrid[floor], LV_OBJ_FLAG_CLICKABLE);
+    floorLabels[floor] = lv_label_create(floorRows[floor]);
+    lv_label_set_text(floorLabels[floor], "F00");
+    lv_obj_set_style_text_font(floorLabels[floor], lineFont, 0);
+    lv_obj_set_style_text_color(floorLabels[floor], COLOR_TEXT_MAIN, 0);
+    lv_obj_set_style_bg_opa(floorLabels[floor], LV_OPA_TRANSP, 0);
+    lv_obj_set_flex_grow(floorLabels[floor], 1);
 
-      // Floor number label
-      floorLabels[floor] = lv_label_create(floorGrid[floor]);
-      lv_label_set_text_fmt(floorLabels[floor], "%02d", floor);
-      lv_obj_set_style_text_font(floorLabels[floor], &lv_font_montserrat_28, 0);
-      lv_obj_set_style_text_color(floorLabels[floor], COLOR_TEXT, 0);
-      lv_obj_align(floorLabels[floor], LV_ALIGN_TOP_MID, 0, 0);
+    auto createBar = [&](lv_color_t inactiveColor) -> lv_obj_t * {
+      lv_obj_t *bar = lv_obj_create(floorRows[floor]);
+      lv_obj_remove_style_all(bar);
+      lv_obj_set_size(bar, 60, 6);
+      lv_obj_set_style_radius(bar, 3, 0);
+      lv_obj_set_style_bg_color(bar, inactiveColor, 0);
+      lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+      return bar;
+    };
 
-      // UP indicator (green circle)
-      upIndicators[floor] = lv_obj_create(floorGrid[floor]);
-      lv_obj_set_size(upIndicators[floor], IND_SIZE, IND_SIZE);
-      lv_obj_set_style_radius(upIndicators[floor], LV_RADIUS_CIRCLE, 0);
-      lv_obj_set_style_bg_color(upIndicators[floor], COLOR_INACTIVE, 0);
-      lv_obj_set_style_border_width(upIndicators[floor], 0, 0);
-      lv_obj_align(upIndicators[floor], LV_ALIGN_BOTTOM_LEFT, 8, -8);
+    barUp[floor] = createBar(COLOR_BAR_INACTIVE);
+    barLoad[floor] = createBar(COLOR_BAR_INACTIVE);
+    barDown[floor] = createBar(COLOR_BAR_INACTIVE);
 
-      // LOAD indicator (yellow square)
-      loadIndicators[floor] = lv_obj_create(floorGrid[floor]);
-      lv_obj_set_size(loadIndicators[floor], IND_SIZE, IND_SIZE);
-      lv_obj_set_style_radius(loadIndicators[floor], 0, 0);
-      lv_obj_set_style_bg_color(loadIndicators[floor], COLOR_INACTIVE, 0);
-      lv_obj_set_style_border_width(loadIndicators[floor], 0, 0);
-      lv_obj_align(loadIndicators[floor], LV_ALIGN_BOTTOM_MID, 0, -8);
-
-      // DOWN indicator (red circle)
-      downIndicators[floor] = lv_obj_create(floorGrid[floor]);
-      lv_obj_set_size(downIndicators[floor], IND_SIZE, IND_SIZE);
-      lv_obj_set_style_radius(downIndicators[floor], LV_RADIUS_CIRCLE, 0);
-      lv_obj_set_style_bg_color(downIndicators[floor], COLOR_INACTIVE, 0);
-      lv_obj_set_style_border_width(downIndicators[floor], 0, 0);
-      lv_obj_align(downIndicators[floor], LV_ALIGN_BOTTOM_RIGHT, -8, -8);
-    }
+    updateFloorDisplay(floor);
   }
 
-  // Status bar at bottom (if space available)
   statusLabel = lv_label_create(screen);
-  lv_label_set_text(statusLabel, "Ready");
-  lv_obj_set_style_text_color(statusLabel, lv_color_hex(0xA5B4FC), 0);
-  lv_obj_set_style_text_font(statusLabel, &lv_font_montserrat_22, 0);
-  lv_obj_align(statusLabel, LV_ALIGN_BOTTOM_LEFT, 15, -10);
+  lv_label_set_text(statusLabel, "Awaiting data...");
+  lv_obj_set_style_text_color(statusLabel, COLOR_TEXT_MAIN, 0);
+  lv_obj_set_style_text_font(statusLabel, activeTheme->statusFont, 0);
+  lv_obj_align(statusLabel, LV_ALIGN_BOTTOM_LEFT, 6, -6);
 
   Serial.println(F("Floor grid created"));
 }
@@ -294,44 +384,42 @@ void createFloorGrid() {
 // ============= DISPLAY UPDATES =============
 void updateFloorDisplay(uint8_t floor) {
   if (floor < 1 || floor > TOTAL_FLOORS) return;
+  if (!floorLabels[floor]) return;
 
-  // Update UP indicator
-  if (floorStates[floor].upActive) {
-    lv_obj_set_style_bg_color(upIndicators[floor], COLOR_UP, 0);
-  } else {
-    lv_obj_set_style_bg_color(upIndicators[floor], COLOR_INACTIVE, 0);
+  char line[24];
+  snprintf(line, sizeof(line), "F%02d", floor);
+  lv_label_set_text(floorLabels[floor], line);
+
+  if (barUp[floor]) {
+    lv_obj_set_style_bg_color(barUp[floor],
+                              floorStates[floor].upActive ? COLOR_BAR_UP : COLOR_BAR_INACTIVE, 0);
   }
-
-  // Update DOWN indicator
-  if (floorStates[floor].downActive) {
-    lv_obj_set_style_bg_color(downIndicators[floor], COLOR_DOWN, 0);
-  } else {
-    lv_obj_set_style_bg_color(downIndicators[floor], COLOR_INACTIVE, 0);
+  if (barLoad[floor]) {
+    lv_obj_set_style_bg_color(barLoad[floor],
+                              floorStates[floor].loadActive ? COLOR_BAR_LOAD : COLOR_BAR_INACTIVE, 0);
   }
-
-  // Update LOAD indicator
-  if (floorStates[floor].loadActive) {
-    lv_obj_set_style_bg_color(loadIndicators[floor], COLOR_LOAD, 0);
-  } else {
-    lv_obj_set_style_bg_color(loadIndicators[floor], COLOR_INACTIVE, 0);
+  if (barDown[floor]) {
+    lv_obj_set_style_bg_color(barDown[floor],
+                              floorStates[floor].downActive ? COLOR_BAR_DOWN : COLOR_BAR_INACTIVE, 0);
   }
 }
 
 void highlightCurrentFloor() {
   for (uint8_t f = 1; f <= TOTAL_FLOORS; f++) {
-    if (floorGrid[f] != NULL) {
-      lv_obj_set_style_border_color(floorGrid[f], COLOR_BORDER, 0);
-      lv_obj_set_style_bg_color(floorGrid[f], COLOR_CARD_BG, 0);
-      lv_obj_set_style_border_width(floorGrid[f], 2, 0);
-      lv_obj_set_style_shadow_color(floorGrid[f], lv_color_hex(0x0c111d), 0);
+    if (floorRows[f] != NULL) {
+      lv_obj_set_style_bg_opa(floorRows[f], LV_OPA_TRANSP, 0);
+      lv_obj_set_style_text_color(floorLabels[f], COLOR_TEXT_MAIN, 0);
     }
   }
 
   if (currentElevatorFloor >= 1 && currentElevatorFloor <= TOTAL_FLOORS) {
-    lv_obj_set_style_border_color(floorGrid[currentElevatorFloor], COLOR_CURRENT, 0);
-    lv_obj_set_style_border_width(floorGrid[currentElevatorFloor], 4, 0);
-    lv_obj_set_style_bg_color(floorGrid[currentElevatorFloor], lv_color_hex(0xE3F2FD), 0);
-    lv_obj_set_style_shadow_color(floorGrid[currentElevatorFloor], COLOR_CURRENT, 0);
+    if (floorRows[currentElevatorFloor]) {
+      lv_obj_set_style_bg_color(floorRows[currentElevatorFloor],
+                                COLOR_HIGHLIGHT, 0);
+      lv_obj_set_style_bg_opa(floorRows[currentElevatorFloor], LV_OPA_40, 0);
+      lv_obj_set_style_text_color(floorLabels[currentElevatorFloor],
+                                  COLOR_TEXT_MAIN, 0);
+    }
   }
 }
 
@@ -377,6 +465,164 @@ void stcDisableBuzzer() {
   stcSend(STC_CMD_BUZZER_OFF);
 }
 
+void muteHardwareBuzzer() {
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+}
+
+void runLovyanSimpleDemo() {
+  Serial.println(F("Rendering LovyanGFX full-screen test..."));
+  const int w = tft.width();
+  const int h = tft.height();
+
+  // Gradient background
+  for (int y = 0; y < h; y++) {
+    float t = static_cast<float>(y) / h;
+    uint32_t color = tft.color888(
+        static_cast<uint8_t>(255 * t),
+        static_cast<uint8_t>(100 + 100 * sinf(t * 3.14f)),
+        static_cast<uint8_t>(255 * (1.0f - t)));
+    tft.drawFastHLine(0, y, w, color);
+  }
+
+  // Hue bars
+  const int barCount = 12;
+  const int barWidth = w / barCount;
+  for (int i = 0; i < barCount; i++) {
+    float t = static_cast<float>(i) / (barCount - 1);
+    uint8_t r = static_cast<uint8_t>(255 * t);
+    uint8_t g = static_cast<uint8_t>(255 * (1.0f - t));
+    uint8_t b = static_cast<uint8_t>(128 + 127 * sinf(t * 6.283f));
+    tft.fillRect(i * barWidth, h / 2 - 60, barWidth - 2, 120, tft.color888(r, g, b));
+  }
+
+  // Grid overlay
+  tft.setColor(0xFFFFFFU);
+  for (int y = 0; y < h; y += 40) {
+    tft.drawFastHLine(0, y, w);
+  }
+  for (int x = 0; x < w; x += 40) {
+    tft.drawFastVLine(x, 0, h);
+  }
+
+  // Anti-aliased text via sprite
+  const int spriteWidth = w - 80;
+  const int spriteHeight = 100;
+  textSprite.setColorDepth(24);
+  textSprite.createSprite(spriteWidth, spriteHeight);
+  textSprite.fillScreen(tft.color888(0, 0, 0));
+  textSprite.setTextColor(0xFFFFFFU, tft.color888(0, 0, 0));
+  textSprite.setFont(&Font4);
+  textSprite.setTextDatum(textdatum_t::top_center);
+  textSprite.drawString("LovyanGFX Full-Screen Test", spriteWidth / 2, 8);
+  textSprite.setFont(&Font2);
+  textSprite.drawString(String(w) + " x " + String(h) + " @24-bit", spriteWidth / 2, 64);
+  textSprite.pushSprite((w - spriteWidth) / 2, 24, tft.color888(0, 0, 0));
+  textSprite.deleteSprite();
+
+  delay(60000);
+  tft.fillScreen(0x0000);
+}
+
+const ThemePalette *paletteForVariant(ThemeVariant variant) {
+  switch (variant) {
+    case ThemeVariant::DarkGlass:
+      return &THEME_DARK_GLASS;
+    case ThemeVariant::Blueprint:
+      return &THEME_BLUEPRINT;
+    case ThemeVariant::HighContrast:
+      return &THEME_HIGH_CONTRAST;
+    default:
+      return &THEME_DARK_GLASS;
+  }
+}
+
+void applyTheme(ThemeVariant variant) {
+  const ThemePalette *palette = paletteForVariant(variant);
+  if (palette == nullptr) {
+    return;
+  }
+  currentTheme = variant;
+  activeTheme = palette;
+  Serial.print(F("Applied theme: "));
+  Serial.println(activeTheme->name);
+}
+
+void resetFloorWidgets() {
+  for (uint8_t f = 0; f <= TOTAL_FLOORS; f++) {
+    floorRows[f] = nullptr;
+    floorLabels[f] = nullptr;
+    barUp[f] = nullptr;
+    barLoad[f] = nullptr;
+    barDown[f] = nullptr;
+  }
+  statusLabel = nullptr;
+  floorListContainer = nullptr;
+}
+
+void rebuildUI() {
+  lv_obj_clean(lv_scr_act());
+  createFloorGrid();
+  for (uint8_t f = 1; f <= TOTAL_FLOORS; f++) {
+    updateFloorDisplay(f);
+  }
+  highlightCurrentFloor();
+}
+
+#if LV_USE_LOG
+void lvglLogPrinter(const char *buf) {
+  if (!buf) return;
+  Serial.print(F("[LVGL] "));
+  Serial.println(buf);
+}
+#endif
+
+void cycleTheme(bool forward) {
+  constexpr uint8_t themeCount = 3;
+  int8_t idx = static_cast<int8_t>(currentTheme);
+  idx += forward ? 1 : -1;
+  if (idx >= static_cast<int8_t>(themeCount)) idx = 0;
+  if (idx < 0) idx = themeCount - 1;
+  applyTheme(static_cast<ThemeVariant>(idx));
+  rebuildUI();
+}
+
+void handleSerialCommands() {
+  while (Serial.available()) {
+    char c = static_cast<char>(Serial.read());
+    if (c == '\n' || c == '\r') {
+      continue;
+    }
+
+    switch (c) {
+      case 't':
+      case 'T':
+        cycleTheme(true);
+        break;
+      case 'r':
+      case 'R':
+        cycleTheme(false);
+        break;
+      case '1':
+        applyTheme(ThemeVariant::DarkGlass);
+        rebuildUI();
+        break;
+      case '2':
+        applyTheme(ThemeVariant::Blueprint);
+        rebuildUI();
+        break;
+      case '3':
+        applyTheme(ThemeVariant::HighContrast);
+        rebuildUI();
+        break;
+      default:
+        Serial.print(F("Unknown theme command: "));
+        Serial.println(c);
+        break;
+    }
+  }
+}
+
 bool probeGateway() {
   Wire.beginTransmission(I2C_MASTER_ADDRESS);
   return Wire.endTransmission(true) == 0;
@@ -412,7 +658,9 @@ void requestDataFromGateway() {
       char statusText[64];
       snprintf(statusText, sizeof(statusText), "Floor %d | RSSI: %d dBm | Elevator: %d",
                pkt.floor, pkt.rssi, currentElevatorFloor);
-      lv_label_set_text(statusLabel, statusText);
+      if (statusLabel != nullptr) {
+        lv_label_set_text(statusLabel, statusText);
+      }
     }
   }
 }
