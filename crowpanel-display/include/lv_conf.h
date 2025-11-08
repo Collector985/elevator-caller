@@ -15,6 +15,11 @@
 /* Color depth: 1 (1 byte per pixel), 8 (RGB332), 16 (RGB565), 32 (ARGB8888) */
 #define LV_COLOR_DEPTH 16
 
+/* Draw engine tuning */
+#define LV_DRAW_COMPLEX 1
+#define LV_SHADOW_CACHE_SIZE 0
+#define LV_ANTIALIASING 1
+
 /* Swap the 2 bytes of RGB565 color. Useful if the display has an 8-bit interface (e.g. SPI) */
 #define LV_COLOR_16_SWAP 1
 
@@ -27,7 +32,7 @@
 
 #if LV_MEM_CUSTOM == 0
     /* Size of the memory available for `lv_mem_alloc()` in bytes (>= 2kB) */
-    #define LV_MEM_SIZE (64U * 1024U) /* 64KB */
+    #define LV_MEM_SIZE (128U * 1024U) /* 128KB */
 
     /* Set an address for the memory pool instead of allocating it as a normal array. */
     #define LV_MEM_ADR 0
@@ -112,11 +117,11 @@
      * LV_LOG_LEVEL_ERROR       Only critical issue, when the system may fail
      * LV_LOG_LEVEL_USER        Only logs added by the user
      * LV_LOG_LEVEL_NONE        Do not log anything */
-    #define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
+    #define LV_LOG_LEVEL LV_LOG_LEVEL_INFO
 
     /* 1: Print the log with 'printf';
      * 0: User need to register a callback with `lv_log_register_print_cb()`*/
-    #define LV_LOG_PRINTF 1
+    #define LV_LOG_PRINTF 0
 
     /* Enable/disable LV_LOG_TRACE in modules that produces a huge number of logs */
     #define LV_LOG_TRACE_MEM        0
@@ -136,12 +141,12 @@
 /* Montserrat fonts with ASCII range and some symbols using bpp = 4
  * https://fonts.google.com/specimen/Montserrat */
 #define LV_FONT_MONTSERRAT_8  0
-#define LV_FONT_MONTSERRAT_10 0
-#define LV_FONT_MONTSERRAT_12 0
+#define LV_FONT_MONTSERRAT_10 1
+#define LV_FONT_MONTSERRAT_12 1
 #define LV_FONT_MONTSERRAT_14 1
 #define LV_FONT_MONTSERRAT_16 1
 #define LV_FONT_MONTSERRAT_18 1
-#define LV_FONT_MONTSERRAT_20 1
+#define LV_FONT_MONTSERRAT_20 0
 #define LV_FONT_MONTSERRAT_22 1
 #define LV_FONT_MONTSERRAT_24 1
 #define LV_FONT_MONTSERRAT_26 0
@@ -164,7 +169,7 @@
 #define LV_FONT_SIMSUN_16_CJK            0  /*1000 most common CJK radicals*/
 
 /* Pixel perfect monospace fonts */
-#define LV_FONT_UNSCII_8  0
+#define LV_FONT_UNSCII_8  1
 #define LV_FONT_UNSCII_16 0
 
 /* Optionally declare custom fonts here.
@@ -286,5 +291,8 @@
 
 /* Check the objects (e.g. not deleted) in the input device drivers (Slow) */
 #define LV_USE_ASSERT_OBJ 0
+
+#define LV_USE_PERF_MONITOR 0
+#define LV_USE_MEM_MONITOR 0
 
 #endif /*LV_CONF_H*/

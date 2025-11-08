@@ -1,0 +1,78 @@
+SCREEN 1: SHAFT VIEW LAYOUT (480x800)
+=====================================
+
+Two-Column Design - All 30 Floors Visible
+------------------------------------------
+
+LEFT COLUMN (Floors 30-16)         RIGHT COLUMN (Floors 15-1)
+┌─────────────────────┐           ┌─────────────────────┐
+│                     │           │                     │
+│  ┌──┐                │           │  ┌──┐              │
+│  │30│ [UP][DN][LD]  │           │  │15│ [UP][DN][LD] │
+│  └──┘                │           │  └──┘              │
+│                     │           │                     │
+│  ┌──┐                │           │  ┌──┐              │
+│  │29│ [UP][DN][LD]  │           │  │14│ [UP][DN][LD] │
+│  └──┘                │           │  └──┘              │
+│                     │           │                     │
+│  ┌──┐                │           │  ┌──┐              │
+│  │28│ [UP][DN][LD]  │           │  │13│ [UP][DN][LD] │
+│  └──┘                │           │  └──┘              │
+│                     │           │                     │
+│  ... (continues)     │           │  ... (continues)   │
+│                     │           │                     │
+│  ┌──┐                │           │  ┌──┐              │
+│  │17│ [UP][DN][LD]  │           │  │ 2│    [DN][LD]  │
+│  └──┘                │           │  └──┘              │
+│                     │           │                     │
+│  ┌──┐                │           │  ┌──┐              │
+│  │16│ [UP][DN][LD]  │           │  │ 1│       [LD]   │
+│  └──┘                │           │  └──┘              │
+│                     │           │                     │
+└─────────────────────┘           └─────────────────────┘
+
+┌──────────────────────────────────────────────────────┐
+│      [SHAFT]    [GRID]    [CONTROL]                  │
+└──────────────────────────────────────────────────────┘
+
+CURRENT FLOOR INDICATOR
+-----------------------
+When elevator is at floor 15:
+  ┌══┐  ← Purple/highlighted background
+  │15│
+  └══┘
+
+When NOT at floor:
+  ┌──┐  ← Dark gray background
+  │14│
+  └──┘
+
+BUTTON STATES
+-------------
+Normal:   [UP]   Green background
+Active:   [UP]   Yellow background (call placed)
+Normal:   [DN]   Red background
+Active:   [DN]   Yellow background
+Normal:   [LD]   Orange background
+Active:   [LD]   Yellow background
+
+LAYOUT DIMENSIONS
+-----------------
+Screen:           480 x 800 pixels
+Main panel:       460 x 720 pixels
+Nav bar:          480 x 60 pixels
+Floor box:        40 x 40 pixels
+Button:           50 x 40 pixels
+Row height:       48 pixels
+Column spacing:   15 pixels between columns
+
+ADVANTAGES OF THIS DESIGN
+--------------------------
+✓ All 30 floors always visible (no scrolling needed)
+✓ Current floor clearly highlighted
+✓ No wasted space on animated car graphic
+✓ Larger, easier-to-tap buttons
+✓ Cleaner, more professional look
+✓ Instant visual feedback on elevator position
+✓ More screen real estate for buttons
+✓ Better for touch interface (no tiny targets)

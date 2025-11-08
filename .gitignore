@@ -1,5 +1,6 @@
 .pio/
 crowpanel-display/.pio/
+crowpanel-display/.platformio/
 previous/
 *.zip
 *.rar

@@ -1,0 +1,165 @@
+# 3-Screen LVGL Elevator System for 480x800
+
+## Screen Layout
+
+### Screen 1: SHAFT VIEW (Main View)
+```
+┌────────────────────────────────────────┐
+│  Floors 30-16    │    Floors 15-1      │
+│  ┌──────────┐    │    ┌──────────┐     │
+│  │30│UP│DN│LD│   │   │15│UP│DN│LD│    │
+│  │29│UP│DN│LD│   │   │14│UP│DN│LD│    │
+│  │28│UP│DN│LD│   │   │13│UP│DN│LD│    │
+│  │27│UP│DN│LD│   │   │12│UP│DN│LD│    │
+│  │..│  │  │  │   │   │..│  │  │  │    │
+│  │17│UP│DN│LD│   │   │2 │  │DN│LD│    │
+│  │16│UP│DN│LD│   │   │1 │  │DN│LD│    │
+│  └──────────┘    │    └──────────┘     │
+│                                         │
+│  Current floor highlighted in purple   │
+├────────────────────────────────────────┤
+│  [SHAFT]  [GRID]  [CONTROL]            │
+└────────────────────────────────────────┘
+```
+- Two columns of floors (saves space, shows ALL floors)
+- Current elevator floor is HIGHLIGHTED (purple background)
+- Click UP/DOWN/LOAD buttons to place/clear calls
+- Yellow highlight when call is active
+- Scrollable if needed
+
+### Screen 2: FLOOR GRID (Status Overview)
+```
+┌────────────────────────────────────────┐
+│  Complete Floor Status (8 columns)     │
+│  ┌──┬──┬──┬──┬──┬──┬──┬──┐            │
+│  │30│29│28│27│26│25│24│23│            │
+│  │●●│  │  │●●│  │  │  │  │ ◄ Indicators│
+│  ├──┼──┼──┼──┼──┼──┼──┼──┤            │
+│  │22│21│20│19│18│17│16│15│            │
+│  │  │●●│  │  │  │  │  │● │            │
+│  ├──┼──┼──┼──┼──┼──┼──┼──┤            │
+│  │14│13│12│11│10│9 │8 │7 │            │
+│  │  │  │  │  │  │  │●●│  │            │
+│  ├──┼──┼──┼──┼──┼──┼──┼──┤            │
+│  │6 │5 │4 │3 │2 │1 │  │  │            │
+│  │  │● │  │  │  │  │  │  │            │
+│  └──┴──┴──┴──┴──┴──┴──┴──┘            │
+│  ● = UP (green)                        │
+│  ● = DOWN (red)                        │
+│  ● = LOAD (orange)                     │
+├────────────────────────────────────────┤
+│  [SHAFT]  [GRID]  [CONTROL]            │
+└────────────────────────────────────────┘
+```
+- See all 30 floors at once
+- Color-coded indicators (green/red/orange dots)
+- Tap floor cell to clear all calls for that floor
+- Scrollable if needed
+
+### Screen 3: CONTROLS (Stats & Log)
+```
+┌────────────────────────────────────────┐
+│  ELEVATOR STATISTICS                   │
+│  Total Calls: 125    Current Floor: 15 │
+│  Active Calls: 3     Target Floor: 8   │
+│  Auto Cleared: 47    Status: MOVING    │
+├────────────────────────────────────────┤
+│  [AUTO MODE]        [RANDOM CALLS]     │
+│  [CLEAR ALL CALLS]                     │
+├────────────────────────────────────────┤
+│  PACKET LOG                            │
+│  ┌────────────────────────────────────┐│
+│  │[0001] CALL: Floor 25 DOWN          ││
+│  │[0002] CALL: Floor 15 UP            ││
+│  │[0003] POSITION: Floor 15           ││
+│  │[0004] AUTO-CLEAR: Floor 15         ││
+│  │[0005] CALL: Floor 8 LOAD           ││
+│  │...                                 ││
+│  └────────────────────────────────────┘│
+├────────────────────────────────────────┤
+│  [SHAFT]  [GRID]  [CONTROL]            │
+└────────────────────────────────────────┘
+```
+- Live statistics
+- Control buttons (auto mode, random calls, clear all)
+- Scrolling packet log (shows LoRa traffic)
+
+## Navigation
+
+Bottom navigation bar on all screens:
+- **SHAFT** - View elevator position and place calls
+- **GRID** - See all floors status at a glance  
+- **CONTROL** - Stats, controls, and packet log
+
+## Features
+
+✓ Touch-based navigation between 3 screens
+✓ Two-column floor layout (all 30 floors visible)
+✓ Current floor highlighted (no car graphic - cleaner)
+✓ Call placement (UP/DOWN/LOAD buttons on every floor)
+✓ RSSI-based auto-clear simulation
+✓ Auto mode (services nearest call first)
+✓ Statistics tracking
+✓ Packet logging
+✓ Random call generator for testing
+
+## Integration
+
+1. Add files to your project:
+   - `elevator_3screen.c`
+   - `elevator_3screen.h`
+   - `main_example.cpp` (modify for your hardware)
+
+2. Implement display and touch drivers for your CrowPanel
+
+3. Connect LoRa messages to the call system
+
+4. Call `elevator_init()` in setup
+
+## LoRa Integration Points
+
+To connect with your RFM95 LoRa floor buttons:
+
+```c
+// When LoRa message received from floor button:
+void on_lora_call(uint8_t floor, uint8_t button_type) {
+    // Add extern function to elevator_3screen.c:
+    // place_call(floor, button_type);
+}
+
+// Broadcast elevator position periodically:
+void broadcast_position() {
+    // Add extern function to get current floor:
+    // uint8_t floor = get_current_floor();
+    // Send via LoRa to all floor units
+}
+```
+
+## Memory Usage
+
+- ~15KB for LVGL objects
+- ~38KB for 40-line display buffer
+- ~2KB for elevator state
+- Total: ~55KB (fits in RP2040's 264KB RAM)
+
+## Customization
+
+All colors and sizes are defined at the top of `elevator_3screen.c`:
+- `COLOR_UP`, `COLOR_DOWN`, `COLOR_LOAD` - Button colors
+- `FLOOR_COUNT` - Number of floors (change to match your building)
+- Timer intervals for elevator speed
+
+## Notes for Your System
+
+Since you're working with:
+- **CrowPanel 7" (480x800)** - Perfect fit for this layout
+- **Adafruit Feather RP2040 RFM95** - Use RadioHead library for LoRa
+- **16 LED button floor units** - Send calls via LoRa to this display
+- **LVGL with 4bpp fonts** - Replace built-in fonts with your custom ones
+
+The 3-screen design gives you:
+1. Operator view (SHAFT) for quick response - **2 columns, all floors visible**
+2. Overview (GRID) for situational awareness  
+3. Diagnostics (CONTROL) for troubleshooting
+
+**Design Note**: Instead of showing an animated elevator car, the current floor number is highlighted in purple. This gives more space for buttons and makes the interface cleaner and easier to read at a glance.

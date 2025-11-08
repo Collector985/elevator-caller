@@ -5,6 +5,8 @@
 #include <LovyanGFX.hpp>
 #include <lgfx/v1/platforms/esp32s3/Panel_RGB.hpp>
 #include <lgfx/v1/platforms/esp32s3/Bus_RGB.hpp>
+#include <lgfx/v1/touch/Touch_GT911.hpp>
+#include <driver/i2c.h>
 
 class LGFX : public lgfx::LGFX_Device {
  public:
@@ -26,7 +28,7 @@ class LGFX : public lgfx::LGFX_Device {
     bus_cfg.pin_d11 = GPIO_NUM_7;
     bus_cfg.pin_d12 = GPIO_NUM_17;
     bus_cfg.pin_d13 = GPIO_NUM_18;
-    bus_cfg.pin_d14 = GPIO_NUM_8;
+    bus_cfg.pin_d14 = GPIO_NUM_3;   // R3; keep GPIO8 free for buzzer control
     bus_cfg.pin_d15 = GPIO_NUM_46;
 
     bus_cfg.pin_henable = GPIO_NUM_42;
@@ -63,10 +65,27 @@ class LGFX : public lgfx::LGFX_Device {
     _panel_instance.config_detail(detail_cfg);
 
     _panel_instance.setBus(&_bus_instance);
+
+    auto touch_cfg = _touch_instance.config();
+    touch_cfg.x_max = 799;
+    touch_cfg.y_max = 479;
+    touch_cfg.x_min = 0;
+    touch_cfg.y_min = 0;
+    touch_cfg.pin_sda = GPIO_NUM_15;
+    touch_cfg.pin_scl = GPIO_NUM_16;
+    touch_cfg.pin_int = GPIO_NUM_NC;
+    touch_cfg.pin_rst = GPIO_NUM_NC;
+    touch_cfg.freq = 400000;
+    touch_cfg.i2c_port = I2C_NUM_1;
+    touch_cfg.bus_shared = true;
+    _touch_instance.config(touch_cfg);
+    _panel_instance.setTouch(&_touch_instance);
+
     setPanel(&_panel_instance);
   }
 
  private:
   lgfx::Panel_RGB _panel_instance;
   lgfx::Bus_RGB _bus_instance;
+  lgfx::Touch_GT911 _touch_instance;
 };
