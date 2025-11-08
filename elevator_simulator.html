@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elevator LoRa System Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            padding: 20px;
+        }
+        
+        .container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        /* Building/Shaft Panel */
+        .building {
+            flex: 2;
+            min-width: 400px;
+        }
+        
+        .shaft {
+            position: relative;
+            width: 100%;
+            height: 800px;
+            background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+            border: 3px solid #1a1a1a;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .floor {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: calc(100% / 30);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            transition: background 0.3s;
+        }
+        
+        .floor:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .floor-number {
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            width: 30px;
+        }
+        
+        .floor-buttons {
+            display: flex;
+            gap: 5px;
+            margin-left: 10px;
+        }
+        
+        .call-button {
+            width: 30px;
+            height: 20px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: bold;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .call-button.up {
+            background: #2ecc71;
+            color: white;
+        }
+        
+        .call-button.down {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .call-button.load {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .call-button.active {
+            box-shadow: 0 0 15px currentColor;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .elevator-car {
+            position: absolute;
+            right: 60px;
+            width: 60px;
+            height: calc(100% / 30 - 2px);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: 2px solid #fff;
+            border-radius: 5px;
+            transition: top 2s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        }
+        
+        .rssi-wave {
+            position: absolute;
+            right: 130px;
+            width: 200px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .rssi-bar {
+            width: 4px;
+            background: #00ff00;
+            transition: height 0.3s, background 0.3s;
+            opacity: 0.8;
+        }
+        
+        /* Control Panel */
+        .controls {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .control-section {
+            margin-bottom: 20px;
+        }
+        
+        .control-section h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .stat {
+            padding: 10px;
+            background: #ecf0f1;
+            border-radius: 5px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .control-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: #3498db;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .control-btn:hover {
+            background: #2980b9;
+        }
+        
+        .control-btn.danger {
+            background: #e74c3c;
+        }
+        
+        .control-btn.danger:hover {
+            background: #c0392b;
+        }
+        
+        /* Display Panel */
+        .display {
+            flex: 2;
+            min-width: 400px;
+            max-height: 900px;
+            overflow-y: auto;
+        }
+        
+        .floor-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+        }
+        
+        .floor-cell {
+            aspect-ratio: 1;
+            border: 2px solid #bdc3c7;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #ecf0f1;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .floor-cell:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .floor-cell-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .floor-cell-indicators {
+            display: flex;
+            gap: 3px;
+            margin-top: 5px;
+        }
+        
+        .indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #bdc3c7;
+        }
+        
+        .indicator.up.active {
+            background: #2ecc71;
+            box-shadow: 0 0 5px #2ecc71;
+        }
+        
+        .indicator.down.active {
+            background: #e74c3c;
+            box-shadow: 0 0 5px #e74c3c;
+        }
+        
+        .indicator.load.active {
+            background: #f39c12;
+            box-shadow: 0 0 5px #f39c12;
+        }
+        
+        .floor-cell.current {
+            border-color: #3498db;
+            border-width: 3px;
+            background: #e3f2fd;
+        }
+        
+        /* Packet Log */
+        .packet-log {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #2c3e50;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #2ecc71;
+        }
+        
+        .packet {
+            margin-bottom: 2px;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+        
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        
+        /* Settings */
+        .settings {
+            margin-top: 20px;
+        }
+        
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .setting-row label {
+            flex: 1;
+        }
+        
+        .setting-row input, .setting-row select {
+            flex: 1;
+            padding: 5px;
+            border: 1px solid #bdc3c7;
+            border-radius: 3px;
+        }
+        
+        /* Info Panel */
+        .info-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            max-width: 300px;
+            display: none;
+        }
+        
+        .info-panel.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Building Shaft -->
+        <div class="panel building">
+            <h2>Elevator Shaft (30 Floors)</h2>
+            <div class="shaft" id="shaft">
+                <div class="elevator-car" id="elevator">20</div>
+            </div>
+        </div>
+        
+        <!-- Display Panel -->
+        <div class="panel display">
+            <h2>Operator Display (CrowPanel 7")</h2>
+            <div class="floor-grid" id="floorGrid"></div>
+            
+            <div class="packet-log" id="packetLog">
+                <div>System initialized...</div>
+            </div>
+        </div>
+        
+        <!-- Control Panel -->
+        <div class="panel controls">
+            <h2>System Controls</h2>
+            
+            <div class="control-section">
+                <h3>Statistics</h3>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-label">Total Calls</div>
+                        <div class="stat-value" id="totalCalls">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Active Calls</div>
+                        <div class="stat-value" id="activeCalls">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Auto Cleared</div>
+                        <div class="stat-value" id="autoCleared">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Current Floor</div>
+                        <div class="stat-value" id="currentFloor">20</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Elevator Control</h3>
+                <div class="button-group">
+                    <button class="control-btn" onclick="sim.startAutoMode()">Auto Mode</button>
+                    <button class="control-btn" onclick="sim.stopAutoMode()">Stop</button>
+                </div>
+                <div class="button-group">
+                    <button class="control-btn" onclick="sim.moveToFloor(30)">Top</button>
+                    <button class="control-btn" onclick="sim.moveToFloor(1)">Bottom</button>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Settings</h3>
+                <div class="settings">
+                    <div class="setting-row">
+                        <label>Auto-Clear RSSI</label>
+                        <input type="range" id="rssiThreshold" min="-100" max="-40" value="-60">
+                        <span id="rssiValue">-60 dBm</span>
+                    </div>
+                    <div class="setting-row">
+                        <label>Speed</label>
+                        <select id="speed">
+                            <option value="3000">Slow</option>
+                            <option value="2000" selected>Normal</option>
+                            <option value="1000">Fast</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <label>Auto-Clear</label>
+                        <input type="checkbox" id="autoClear" checked>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Test Actions</h3>
+                <div class="button-group">
+                    <button class="control-btn" onclick="sim.randomCalls(5)">Random Calls</button>
+                    <button class="control-btn danger" onclick="sim.clearAll()">Clear All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="info-panel" id="infoPanel"></div>
+    
+    <script>
+        class ElevatorSimulator {
+            constructor() {
+                this.floors = 30;
+                this.currentFloor = 20;
+                this.targetFloor = 20;
+                this.isMoving = false;
+                this.autoMode = false;
+                this.calls = {};
+                this.stats = {
+                    totalCalls: 0,
+                    activeCalls: 0,
+                    autoCleared: 0
+                };
+                this.autoClearEnabled = true;
+                this.rssiThreshold = -60;
+                this.speed = 2000;
+                
+                this.init();
+            }
+            
+            init() {
+                this.createFloors();
+                this.createDisplay();
+                this.setupEventListeners();
+                this.updateElevatorPosition();
+                this.startRSSISimulation();
+            }
+            
+            createFloors() {
+                const shaft = document.getElementById('shaft');
+                shaft.innerHTML = '<div class="elevator-car" id="elevator">20</div>';
+                
+                for (let floor = this.floors; floor >= 1; floor--) {
+                    const floorDiv = document.createElement('div');
+                    floorDiv.className = 'floor';
+                    floorDiv.style.top = `${(this.floors - floor) * (100 / this.floors)}%`;
+                    floorDiv.innerHTML = `
+                        <div class="floor-number">${floor}</div>
+                        <div class="floor-buttons">
+                            <button class="call-button up" data-floor="${floor}" data-type="up">▲</button>
+                            <button class="call-button load" data-floor="${floor}" data-type="load">M</button>
+                            <button class="call-button down" data-floor="${floor}" data-type="down">▼</button>
+                        </div>
+                        <div class="rssi-wave" id="rssi-${floor}"></div>
+                    `;
+                    shaft.appendChild(floorDiv);
+                    
+                    // Initialize RSSI bars
+                    const rssiWave = floorDiv.querySelector(`#rssi-${floor}`);
+                    for (let i = 0; i < 10; i++) {
+                        const bar = document.createElement('div');
+                        bar.className = 'rssi-bar';
+                        bar.style.height = '0px';
+                        rssiWave.appendChild(bar);
+                    }
+                    
+                    this.calls[floor] = {
+                        up: false,
+                        down: false,
+                        load: false
+                    };
+                }
+            }
+            
+            createDisplay() {
+                const grid = document.getElementById('floorGrid');
+                grid.innerHTML = '';
+                
+                for (let floor = 40; floor >= 1; floor--) {
+                    const cell = document.createElement('div');
+                    cell.className = 'floor-cell';
+                    cell.dataset.floor = floor;
+                    
+                    if (floor > 30) {
+                        cell.style.opacity = '0.3';
+                        cell.style.pointerEvents = 'none';
+                    }
+                    
+                    cell.innerHTML = `
+                        <div class="floor-cell-number">${floor}</div>
+                        <div class="floor-cell-indicators">
+                            <div class="indicator up" data-floor="${floor}" data-type="up"></div>
+                            <div class="indicator load" data-floor="${floor}" data-type="load"></div>
+                            <div class="indicator down" data-floor="${floor}" data-type="down"></div>
+                        </div>
+                    `;
+                    
+                    if (floor <= 30) {
+                        cell.addEventListener('click', () => this.clearFloorFromDisplay(floor));
+                    }
+                    
+                    grid.appendChild(cell);
+                }
+            }
+            
+            setupEventListeners() {
+                // Floor buttons
+                document.querySelectorAll('.call-button').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const floor = parseInt(e.target.dataset.floor);
+                        const type = e.target.dataset.type;
+                        this.placeCall(floor, type);
+                    });
+                });
+                
+                // Settings
+                document.getElementById('rssiThreshold').addEventListener('input', (e) => {
+                    this.rssiThreshold = parseInt(e.target.value);
+                    document.getElementById('rssiValue').textContent = `${this.rssiThreshold} dBm`;
+                });
+                
+                document.getElementById('speed').addEventListener('change', (e) => {
+                    this.speed = parseInt(e.target.value);
+                });
+                
+                document.getElementById('autoClear').addEventListener('change', (e) => {
+                    this.autoClearEnabled = e.target.checked;
+                });
+            }
+            
+            placeCall(floor, type) {
+                if (this.calls[floor][type]) return;
+                
+                this.calls[floor][type] = true;
+                this.stats.totalCalls++;
+                this.updateStats();
+                
+                // Update button
+                const btn = document.querySelector(`.call-button[data-floor="${floor}"][data-type="${type}"]`);
+                btn.classList.add('active');
+                
+                // Update display
+                const indicator = document.querySelector(`.indicator[data-floor="${floor}"][data-type="${type}"]`);
+                if (indicator) {
+                    indicator.classList.add('active');
+                }
+                
+                // Log packet
+                this.logPacket(`CALL: Floor ${floor} ${type.toUpperCase()} - RSSI: ${this.calculateRSSI(floor)} dBm`);
+                
+                // Send ACK
+                setTimeout(() => {
+                    this.logPacket(`ACK: Floor ${floor} ${type.toUpperCase()} acknowledged`);
+                }, 100);
+            }
+            
+            clearCall(floor, type) {
+                if (!this.calls[floor][type]) return;
+                
+                this.calls[floor][type] = false;
+                
+                // Update button
+                const btn = document.querySelector(`.call-button[data-floor="${floor}"][data-type="${type}"]`);
+                btn.classList.remove('active');
+                
+                // Update display
+                const indicator = document.querySelector(`.indicator[data-floor="${floor}"][data-type="${type}"]`);
+                if (indicator) {
+                    indicator.classList.remove('active');
+                }
+                
+                this.updateStats();
+            }
+            
+            clearFloor(floor) {
+                this.clearCall(floor, 'up');
+                this.clearCall(floor, 'down');
+                this.clearCall(floor, 'load');
+                
+                this.logPacket(`CLEAR: Floor ${floor} all calls cleared`);
+            }
+            
+            clearFloorFromDisplay(floor) {
+                if (this.calls[floor].up || this.calls[floor].down || this.calls[floor].load) {
+                    this.clearFloor(floor);
+                    this.logPacket(`MANUAL CLEAR: Floor ${floor} from display`);
+                }
+            }
+            
+            clearAll() {
+                for (let floor = 1; floor <= this.floors; floor++) {
+                    this.clearFloor(floor);
+                }
+                this.stats.activeCalls = 0;
+                this.updateStats();
+            }
+            
+            calculateRSSI(floor) {
+                const distance = Math.abs(this.currentFloor - floor);
+                const baseRSSI = -50;
+                const pathLoss = distance * 10;
+                const noise = (Math.random() - 0.5) * 10;
+                return Math.max(-120, baseRSSI - pathLoss + noise);
+            }
+            
+            updateRSSIDisplay(floor) {
+                const rssi = this.calculateRSSI(floor);
+                const bars = document.querySelectorAll(`#rssi-${floor} .rssi-bar`);
+                const strength = Math.max(0, (120 + rssi) / 70); // Normalize to 0-1
+                
+                bars.forEach((bar, i) => {
+                    const height = strength * (i + 1) * 2;
+                    bar.style.height = `${height}px`;
+                    
+                    if (rssi > -60) {
+                        bar.style.background = '#00ff00';
+                    } else if (rssi > -80) {
+                        bar.style.background = '#ffff00';
+                    } else if (rssi > -100) {
+                        bar.style.background = '#ff8800';
+                    } else {
+                        bar.style.background = '#ff0000';
+                    }
+                });
+                
+                // Auto-clear if close enough
+                if (this.autoClearEnabled && rssi > this.rssiThreshold && 
+                    Math.abs(this.currentFloor - floor) <= 1) {
+                    if (this.calls[floor].up || this.calls[floor].down || this.calls[floor].load) {
+                        this.stats.autoCleared++;
+                        this.clearFloor(floor);
+                        this.logPacket(`AUTO-CLEAR: Floor ${floor} (RSSI: ${rssi.toFixed(0)} dBm)`);
+                    }
+                }
+            }
+            
+            startRSSISimulation() {
+                setInterval(() => {
+                    for (let floor = 1; floor <= this.floors; floor++) {
+                        if (this.calls[floor].up || this.calls[floor].down || this.calls[floor].load) {
+                            this.updateRSSIDisplay(floor);
+                        } else {
+                            // Clear RSSI display for inactive floors
+                            const bars = document.querySelectorAll(`#rssi-${floor} .rssi-bar`);
+                            bars.forEach(bar => bar.style.height = '0px');
+                        }
+                    }
+                }, 500);
+            }
+            
+            updateElevatorPosition() {
+                const elevator = document.getElementById('elevator');
+                const position = (this.floors - this.currentFloor) * (100 / this.floors);
+                elevator.style.top = `${position}%`;
+                elevator.textContent = this.currentFloor;
+                
+                // Update current floor indicator on display
+                document.querySelectorAll('.floor-cell').forEach(cell => {
+                    cell.classList.remove('current');
+                });
+                const currentCell = document.querySelector(`.floor-cell[data-floor="${this.currentFloor}"]`);
+                if (currentCell) {
+                    currentCell.classList.add('current');
+                }
+                
+                document.getElementById('currentFloor').textContent = this.currentFloor;
+                
+                // Broadcast position
+                this.logPacket(`POS: Elevator at floor ${this.currentFloor}`);
+            }
+            
+            moveToFloor(floor) {
+                if (floor < 1 || floor > this.floors || floor === this.currentFloor) return;
+                
+                this.targetFloor = floor;
+                this.isMoving = true;
+                
+                const moveStep = () => {
+                    if (this.currentFloor === this.targetFloor) {
+                        this.isMoving = false;
+                        return;
+                    }
+                    
+                    if (this.currentFloor < this.targetFloor) {
+                        this.currentFloor++;
+                    } else {
+                        this.currentFloor--;
+                    }
+                    
+                    this.updateElevatorPosition();
+                    
+                    if (this.isMoving) {
+                        setTimeout(moveStep, this.speed);
+                    }
+                };
+                
+                moveStep();
+            }
+            
+            startAutoMode() {
+                this.autoMode = true;
+                this.runAutoMode();
+            }
+            
+            stopAutoMode() {
+                this.autoMode = false;
+                this.isMoving = false;
+            }
+            
+            runAutoMode() {
+                if (!this.autoMode) return;
+                
+                // Find nearest call
+                let nearestFloor = null;
+                let minDistance = Infinity;
+                
+                for (let floor = 1; floor <= this.floors; floor++) {
+                    if (this.calls[floor].up || this.calls[floor].down || this.calls[floor].load) {
+                        const distance = Math.abs(this.currentFloor - floor);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            nearestFloor = floor;
+                        }
+                    }
+                }
+                
+                if (nearestFloor !== null) {
+                    this.moveToFloor(nearestFloor);
+                    setTimeout(() => this.runAutoMode(), this.speed * minDistance + 1000);
+                } else {
+                    setTimeout(() => this.runAutoMode(), 1000);
+                }
+            }
+            
+            randomCalls(count) {
+                for (let i = 0; i < count; i++) {
+                    setTimeout(() => {
+                        const floor = Math.floor(Math.random() * this.floors) + 1;
+                        const types = ['up', 'down', 'load'];
+                        const type = types[Math.floor(Math.random() * types.length)];
+                        this.placeCall(floor, type);
+                    }, i * 500);
+                }
+            }
+            
+            updateStats() {
+                let active = 0;
+                for (let floor = 1; floor <= this.floors; floor++) {
+                    if (this.calls[floor].up) active++;
+                    if (this.calls[floor].down) active++;
+                    if (this.calls[floor].load) active++;
+                }
+                this.stats.activeCalls = active;
+                
+                document.getElementById('totalCalls').textContent = this.stats.totalCalls;
+                document.getElementById('activeCalls').textContent = this.stats.activeCalls;
+                document.getElementById('autoCleared').textContent = this.stats.autoCleared;
+            }
+            
+            logPacket(message) {
+                const log = document.getElementById('packetLog');
+                const packet = document.createElement('div');
+                packet.className = 'packet';
+                packet.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                log.appendChild(packet);
+                
+                // Keep only last 50 messages
+                while (log.children.length > 50) {
+                    log.removeChild(log.firstChild);
+                }
+                
+                log.scrollTop = log.scrollHeight;
+            }
+        }
+        
+        // Initialize simulator
+        const sim = new ElevatorSimulator();
+        
+        // Start with some example calls
+        setTimeout(() => {
+            sim.placeCall(25, 'down');
+            sim.placeCall(15, 'up');
+            sim.placeCall(8, 'load');
+            sim.placeCall(22, 'up');
+            sim.placeCall(5, 'down');
+        }, 1000);
+    </script>
+</body>
+</html>

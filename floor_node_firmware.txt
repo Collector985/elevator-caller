@@ -1,0 +1,531 @@
+/**
+ * Elevator Call Station - Floor Node Firmware
+ * Hardware: Adafruit Feather RP2040 + RFM95 LoRa Radio
+ * 
+ * Features:
+ * - 3 buttons: UP, DOWN, MATERIALS/LOAD
+ * - 3 LED indicators (blue in this config)
+ * - Auto-clear based on elevator proximity
+ * - Battery optimization with sleep modes
+ * - Periodic beacon when call active
+ * - ER34615 battery support (3.6V)
+ */
+
+#include <SPI.h>
+#include <RH_RF95.h>
+#include <pico/sleep.h>
+#include <hardware/clocks.h>
+#include <hardware/rosc.h>
+#include <hardware/structs/scb.h>
+
+// ============= CONFIGURATION =============
+#define FLOOR_NUMBER 15  // Change this for each floor!
+#define LORA_FREQUENCY 915.0
+#define SPREADING_FACTOR 9
+#define TX_POWER 20
+
+// Pin definitions for Feather RP2040
+#define RFM95_CS   8
+#define RFM95_INT  7
+#define RFM95_RST  11
+
+// Button pins (R16-503AD buttons)
+#define BTN_UP     12
+#define BTN_DOWN   13
+#define BTN_LOAD   14
+
+// LED pins (3V blue LEDs)
+#define LED_UP     10
+#define LED_DOWN   9
+#define LED_LOAD   6
+
+// Power optimization
+#define CPU_SPEED_MHZ 48  // Reduce from 133MHz to save power
+#define BEACON_INTERVAL_MS 2000
+#define LISTEN_WINDOW_MS 100
+#define ACK_TIMEOUT_MS 200
+
+// ============= PROTOCOL =============
+enum Commands {
+  CMD_CALL_UP = 0x01,
+  CMD_CALL_DOWN = 0x02,
+  CMD_CALL_LOAD = 0x03,
+  CMD_ACK = 0x10,
+  CMD_CLEAR = 0x20,
+  CMD_CLEAR_ALL = 0x21,
+  CMD_ELEVATOR_POS = 0x30,
+  CMD_PING = 0x40
+};
+
+enum CallState {
+  STATE_IDLE,
+  STATE_CALLING,
+  STATE_ACKNOWLEDGED,
+  STATE_TIMEOUT
+};
+
+// ============= GLOBALS =============
+RH_RF95 rf95(RFM95_CS, RFM95_INT);
+
+struct FloorCall {
+  CallState upState = STATE_IDLE;
+  CallState downState = STATE_IDLE;
+  CallState loadState = STATE_IDLE;
+  uint32_t upTime = 0;
+  uint32_t downTime = 0;
+  uint32_t loadTime = 0;
+  uint8_t upRetries = 0;
+  uint8_t downRetries = 0;
+  uint8_t loadRetries = 0;
+} calls;
+
+uint8_t messageId = 0;
+uint32_t lastBeaconTime = 0;
+bool elevatorNearby = false;
+uint8_t elevatorFloor = 0;
+int8_t lastRSSI = -120;
+
+// ============= SETUP =============
+void setup() {
+  // Reduce CPU speed to save power
+  set_sys_clock_khz(CPU_SPEED_MHZ * 1000, true);
+  
+  Serial.begin(115200);
+  delay(1000);  // Wait for serial
+  
+  Serial.print(F("Floor Node "));
+  Serial.print(FLOOR_NUMBER);
+  Serial.println(F(" Starting..."));
+  
+  // Initialize buttons with internal pullups
+  pinMode(BTN_UP, INPUT_PULLUP);
+  pinMode(BTN_DOWN, INPUT_PULLUP);
+  pinMode(BTN_LOAD, INPUT_PULLUP);
+  
+  // Initialize LEDs
+  pinMode(LED_UP, OUTPUT);
+  pinMode(LED_DOWN, OUTPUT);
+  pinMode(LED_LOAD, OUTPUT);
+  
+  // LED test sequence
+  ledStartupSequence();
+  
+  // Initialize LoRa
+  if (!initializeLoRa()) {
+    Serial.println(F("LoRa init failed!"));
+    errorBlink();
+  }
+  
+  Serial.println(F("Floor node ready"));
+  
+  // Configure wake interrupts
+  attachInterrupt(digitalPinToInterrupt(BTN_UP), wakeUp, FALLING);
+  attachInterrupt(digitalPinToInterrupt(BTN_DOWN), wakeUp, FALLING);
+  attachInterrupt(digitalPinToInterrupt(BTN_LOAD), wakeUp, FALLING);
+}
+
+// ============= MAIN LOOP =============
+void loop() {
+  // Check buttons
+  checkButtons();
+  
+  // Handle active calls with beacons
+  if (hasActiveCalls()) {
+    handleActiveCalls();
+  }
+  
+  // Check for incoming commands
+  checkForCommands();
+  
+  // Manage sleep mode
+  managePowerState();
+}
+
+// ============= LORA FUNCTIONS =============
+bool initializeLoRa() {
+  pinMode(RFM95_RST, OUTPUT);
+  digitalWrite(RFM95_RST, HIGH);
+  delay(10);
+  
+  // Reset LoRa module
+  digitalWrite(RFM95_RST, LOW);
+  delay(10);
+  digitalWrite(RFM95_RST, HIGH);
+  delay(10);
+  
+  if (!rf95.init()) {
+    return false;
+  }
+  
+  rf95.setFrequency(LORA_FREQUENCY);
+  rf95.setSpreadingFactor(SPREADING_FACTOR);
+  rf95.setTxPower(TX_POWER, false);
+  rf95.setSignalBandwidth(125000);
+  rf95.setCodingRate4(5);
+  
+  return true;
+}
+
+void sendPacket(uint8_t command, uint8_t data) {
+  uint8_t packet[5];
+  packet[0] = FLOOR_NUMBER;
+  packet[1] = command;
+  packet[2] = data;
+  packet[3] = messageId++;
+  packet[4] = calculateChecksum(packet, 4);
+  
+  rf95.send(packet, sizeof(packet));
+  rf95.waitPacketSent();
+  
+  Serial.print(F("TX: Floor "));
+  Serial.print(FLOOR_NUMBER);
+  Serial.print(F(" Cmd: 0x"));
+  Serial.print(command, HEX);
+  Serial.print(F(" RSSI: "));
+  Serial.println(rf95.lastRssi());
+}
+
+bool waitForAck(uint8_t command, uint32_t timeout) {
+  uint32_t start = millis();
+  
+  while (millis() - start < timeout) {
+    if (rf95.available()) {
+      uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
+      uint8_t len = sizeof(buf);
+      
+      if (rf95.recv(buf, &len)) {
+        lastRSSI = rf95.lastRssi();
+        
+        if (buf[0] == FLOOR_NUMBER && buf[1] == CMD_ACK && buf[2] == command) {
+          Serial.println(F("ACK received"));
+          return true;
+        }
+      }
+    }
+  }
+  
+  return false;
+}
+
+void checkForCommands() {
+  if (rf95.available()) {
+    uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
+    uint8_t len = sizeof(buf);
+    
+    if (rf95.recv(buf, &len)) {
+      lastRSSI = rf95.lastRssi();
+      
+      if (buf[0] == FLOOR_NUMBER || buf[0] == 0xFF) {  // 0xFF = broadcast
+        handleCommand(buf[1], buf[2]);
+      } else if (buf[1] == CMD_ELEVATOR_POS) {
+        elevatorFloor = buf[2];
+        elevatorNearby = (abs(elevatorFloor - FLOOR_NUMBER) <= 2);
+        
+        if (elevatorNearby && lastRSSI > -60) {
+          // Auto-clear if elevator is very close
+          autoClearCalls();
+        }
+      }
+    }
+  }
+}
+
+void handleCommand(uint8_t command, uint8_t data) {
+  switch (command) {
+    case CMD_CLEAR:
+      if (data == CMD_CALL_UP) {
+        calls.upState = STATE_IDLE;
+        digitalWrite(LED_UP, LOW);
+        Serial.println(F("UP call cleared"));
+      } else if (data == CMD_CALL_DOWN) {
+        calls.downState = STATE_IDLE;
+        digitalWrite(LED_DOWN, LOW);
+        Serial.println(F("DOWN call cleared"));
+      } else if (data == CMD_CALL_LOAD) {
+        calls.loadState = STATE_IDLE;
+        digitalWrite(LED_LOAD, LOW);
+        Serial.println(F("LOAD call cleared"));
+      }
+      break;
+      
+    case CMD_CLEAR_ALL:
+      clearAllCalls();
+      Serial.println(F("All calls cleared"));
+      break;
+      
+    case CMD_PING:
+      // Respond to ping for RSSI measurement
+      sendPacket(CMD_ACK, CMD_PING);
+      break;
+  }
+}
+
+// ============= BUTTON HANDLING =============
+void checkButtons() {
+  static uint32_t lastDebounce = 0;
+  
+  if (millis() - lastDebounce < 50) return;
+  
+  if (digitalRead(BTN_UP) == LOW && calls.upState == STATE_IDLE) {
+    lastDebounce = millis();
+    placeCall(CMD_CALL_UP);
+  }
+  
+  if (digitalRead(BTN_DOWN) == LOW && calls.downState == STATE_IDLE) {
+    lastDebounce = millis();
+    placeCall(CMD_CALL_DOWN);
+  }
+  
+  if (digitalRead(BTN_LOAD) == LOW && calls.loadState == STATE_IDLE) {
+    lastDebounce = millis();
+    placeCall(CMD_CALL_LOAD);
+  }
+}
+
+void placeCall(uint8_t callType) {
+  Serial.print(F("Placing call: 0x"));
+  Serial.println(callType, HEX);
+  
+  // Set LED immediately
+  switch (callType) {
+    case CMD_CALL_UP:
+      digitalWrite(LED_UP, HIGH);
+      calls.upState = STATE_CALLING;
+      calls.upTime = millis();
+      calls.upRetries = 0;
+      break;
+      
+    case CMD_CALL_DOWN:
+      digitalWrite(LED_DOWN, HIGH);
+      calls.downState = STATE_CALLING;
+      calls.downTime = millis();
+      calls.downRetries = 0;
+      break;
+      
+    case CMD_CALL_LOAD:
+      digitalWrite(LED_LOAD, HIGH);
+      calls.loadState = STATE_CALLING;
+      calls.loadTime = millis();
+      calls.loadRetries = 0;
+      break;
+  }
+  
+  // Send immediately
+  sendPacket(callType, 0);
+  
+  // Wait for acknowledgment
+  if (waitForAck(callType, ACK_TIMEOUT_MS)) {
+    switch (callType) {
+      case CMD_CALL_UP:
+        calls.upState = STATE_ACKNOWLEDGED;
+        flashLED(LED_UP, 3);
+        break;
+      case CMD_CALL_DOWN:
+        calls.downState = STATE_ACKNOWLEDGED;
+        flashLED(LED_DOWN, 3);
+        break;
+      case CMD_CALL_LOAD:
+        calls.loadState = STATE_ACKNOWLEDGED;
+        flashLED(LED_LOAD, 3);
+        break;
+    }
+  }
+}
+
+// ============= ACTIVE CALL HANDLING =============
+void handleActiveCalls() {
+  uint32_t now = millis();
+  
+  // Send beacon periodically
+  if (now - lastBeaconTime >= BEACON_INTERVAL_MS) {
+    lastBeaconTime = now;
+    sendBeacon();
+  }
+  
+  // Check for timeouts (5 minutes)
+  checkCallTimeouts(now);
+}
+
+void sendBeacon() {
+  uint8_t status = 0;
+  
+  if (calls.upState != STATE_IDLE) status |= 0x01;
+  if (calls.downState != STATE_IDLE) status |= 0x02;
+  if (calls.loadState != STATE_IDLE) status |= 0x04;
+  
+  if (status > 0) {
+    sendPacket(CMD_PING, status);
+    
+    // Listen for response
+    checkForCommands();
+  }
+}
+
+void checkCallTimeouts(uint32_t now) {
+  const uint32_t TIMEOUT = 300000;  // 5 minutes
+  
+  if (calls.upState != STATE_IDLE && (now - calls.upTime > TIMEOUT)) {
+    calls.upState = STATE_TIMEOUT;
+    slowBlink(LED_UP);
+  }
+  
+  if (calls.downState != STATE_IDLE && (now - calls.downTime > TIMEOUT)) {
+    calls.downState = STATE_TIMEOUT;
+    slowBlink(LED_DOWN);
+  }
+  
+  if (calls.loadState != STATE_IDLE && (now - calls.loadTime > TIMEOUT)) {
+    calls.loadState = STATE_TIMEOUT;
+    slowBlink(LED_LOAD);
+  }
+}
+
+// ============= AUTO-CLEAR =============
+void autoClearCalls() {
+  if (calls.upState != STATE_IDLE) {
+    calls.upState = STATE_IDLE;
+    digitalWrite(LED_UP, LOW);
+    Serial.println(F("UP auto-cleared by proximity"));
+  }
+  
+  if (calls.downState != STATE_IDLE) {
+    calls.downState = STATE_IDLE;
+    digitalWrite(LED_DOWN, LOW);
+    Serial.println(F("DOWN auto-cleared by proximity"));
+  }
+  
+  if (calls.loadState != STATE_IDLE) {
+    calls.loadState = STATE_IDLE;
+    digitalWrite(LED_LOAD, LOW);
+    Serial.println(F("LOAD auto-cleared by proximity"));
+  }
+}
+
+void clearAllCalls() {
+  calls.upState = STATE_IDLE;
+  calls.downState = STATE_IDLE;
+  calls.loadState = STATE_IDLE;
+  
+  digitalWrite(LED_UP, LOW);
+  digitalWrite(LED_DOWN, LOW);
+  digitalWrite(LED_LOAD, LOW);
+}
+
+// ============= POWER MANAGEMENT =============
+void managePowerState() {
+  if (!hasActiveCalls()) {
+    // Deep sleep until button press
+    enterDeepSleep();
+  } else if (elevatorNearby) {
+    // Stay awake for fast response
+    delay(10);
+  } else {
+    // Light sleep between beacons
+    enterLightSleep(BEACON_INTERVAL_MS);
+  }
+}
+
+bool hasActiveCalls() {
+  return (calls.upState != STATE_IDLE || 
+          calls.downState != STATE_IDLE || 
+          calls.loadState != STATE_IDLE);
+}
+
+void enterDeepSleep() {
+  Serial.println(F("Entering deep sleep..."));
+  Serial.flush();
+  
+  // Turn off all LEDs
+  digitalWrite(LED_UP, LOW);
+  digitalWrite(LED_DOWN, LOW);
+  digitalWrite(LED_LOAD, LOW);
+  
+  // Put LoRa to sleep
+  rf95.sleep();
+  
+  // RP2040 deep sleep (wake on interrupt)
+  // Note: This is pseudo-code, actual implementation depends on SDK
+  sleep_goto_dormant_until_pin(BTN_UP, true, false);
+}
+
+void enterLightSleep(uint32_t duration) {
+  rf95.sleep();
+  delay(duration);  // Simple delay for now, could use proper sleep
+  rf95.setModeRx();
+}
+
+void wakeUp() {
+  // ISR for button wake
+  // Just need to exist to wake from sleep
+}
+
+// ============= LED FUNCTIONS =============
+void ledStartupSequence() {
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(LED_UP, HIGH);
+    delay(100);
+    digitalWrite(LED_UP, LOW);
+    digitalWrite(LED_DOWN, HIGH);
+    delay(100);
+    digitalWrite(LED_DOWN, LOW);
+    digitalWrite(LED_LOAD, HIGH);
+    delay(100);
+    digitalWrite(LED_LOAD, LOW);
+  }
+}
+
+void flashLED(uint8_t pin, uint8_t times) {
+  for (uint8_t i = 0; i < times; i++) {
+    digitalWrite(pin, HIGH);
+    delay(100);
+    digitalWrite(pin, LOW);
+    delay(100);
+  }
+  digitalWrite(pin, HIGH);  // Leave on after flash
+}
+
+void slowBlink(uint8_t pin) {
+  static uint32_t lastBlink = 0;
+  static bool state = false;
+  
+  if (millis() - lastBlink > 500) {
+    lastBlink = millis();
+    state = !state;
+    digitalWrite(pin, state);
+  }
+}
+
+void errorBlink() {
+  while (true) {
+    digitalWrite(LED_UP, HIGH);
+    digitalWrite(LED_DOWN, HIGH);
+    digitalWrite(LED_LOAD, HIGH);
+    delay(200);
+    digitalWrite(LED_UP, LOW);
+    digitalWrite(LED_DOWN, LOW);
+    digitalWrite(LED_LOAD, LOW);
+    delay(200);
+  }
+}
+
+// ============= UTILITY =============
+uint8_t calculateChecksum(uint8_t* data, uint8_t len) {
+  uint8_t sum = 0;
+  for (uint8_t i = 0; i < len; i++) {
+    sum ^= data[i];
+  }
+  return sum;
+}
+
+void printStatus() {
+  Serial.print(F("Floor "));
+  Serial.print(FLOOR_NUMBER);
+  Serial.print(F(" Status - UP:"));
+  Serial.print(calls.upState);
+  Serial.print(F(" DN:"));
+  Serial.print(calls.downState);
+  Serial.print(F(" LD:"));
+  Serial.print(calls.loadState);
+  Serial.print(F(" RSSI:"));
+  Serial.println(lastRSSI);
+}
