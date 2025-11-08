@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elevator LoRa System - Configuration Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .section h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        button {
+            padding: 12px 30px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #2c3e50;
+            color: #2ecc71;
+            font-family: 'Courier New', monospace;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ Elevator LoRa System Configuration Generator</h1>
+        <p class="subtitle">Generate custom configuration files for your elevator call station system</p>
+
+        <div class="info-box">
+            <strong>ℹ️ Instructions:</strong> Fill in your system parameters below, then click "Generate Configuration" to create custom config files for your floor nodes and gateway.
+        </div>
+
+        <!-- System Configuration -->
+        <div class="section">
+            <h2>System Configuration</h2>
+            <div class="row">
+                <div class="form-group">
+                    <label for="totalFloors">Total Floors</label>
+                    <input type="number" id="totalFloors" value="30" min="1" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="loraFreq">LoRa Frequency (MHz)</label>
+                    <select id="loraFreq">
+                        <option value="915.0">915 MHz (US)</option>
+                        <option value="868.0">868 MHz (EU)</option>
+                        <option value="433.0">433 MHz</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="spreadingFactor">Spreading Factor</label>
+                    <select id="spreadingFactor">
+                        <option value="7">SF7 (Fastest, Shortest Range)</option>
+                        <option value="8">SF8</option>
+                        <option value="9" selected>SF9 (Balanced)</option>
+                        <option value="10">SF10</option>
+                        <option value="11">SF11</option>
+                        <option value="12">SF12 (Slowest, Longest Range)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="txPower">TX Power (dBm)</label>
+                    <input type="number" id="txPower" value="20" min="2" max="20">
+                </div>
+            </div>
+        </div>
+
+        <!-- Floor Node Configuration -->
+        <div class="section">
+            <h2>Floor Node Configuration</h2>
+            <div class="row">
+                <div class="form-group">
+                    <label for="cpuSpeed">CPU Speed (MHz)</label>
+                    <select id="cpuSpeed">
+                        <option value="12">12 MHz (Ultra Low Power)</option>
+                        <option value="24">24 MHz (Low Power)</option>
+                        <option value="48" selected>48 MHz (Balanced)</option>
+                        <option value="133">133 MHz (Full Speed)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="beaconInterval">Beacon Interval (ms)</label>
+                    <input type="number" id="beaconInterval" value="2000" min="500" max="10000" step="500">
+                </div>
+                <div class="form-group">
+                    <label for="listenWindow">Listen Window (ms)</label>
+                    <input type="number" id="listenWindow" value="100" min="50" max="500" step="50">
+                </div>
+                <div class="form-group">
+                    <label for="proximityThreshold">Proximity Threshold (floors)</label>
+                    <input type="number" id="proximityThreshold" value="3" min="1" max="10">
+                </div>
+            </div>
+        </div>
+
+        <!-- Gateway Configuration -->
+        <div class="section">
+            <h2>Gateway Configuration</h2>
+            <div class="row">
+                <div class="form-group">
+                    <label for="autoClearRSSI">Auto-Clear RSSI Threshold (dBm)</label>
+                    <input type="number" id="autoClearRSSI" value="-60" min="-100" max="-40">
+                </div>
+                <div class="form-group">
+                    <label for="broadcastInterval">Elevator Position Broadcast (ms)</label>
+                    <input type="number" id="broadcastInterval" value="1000" min="500" max="5000" step="500">
+                </div>
+                <div class="form-group">
+                    <label for="i2cAddress">I2C Slave Address (hex)</label>
+                    <input type="text" id="i2cAddress" value="0x08">
+                </div>
+                <div class="form-group">
+                    <label for="gatewayIP">Gateway IP Address</label>
+                    <input type="text" id="gatewayIP" value="192.168.1.100">
+                </div>
+            </div>
+        </div>
+
+        <!-- Battery Life Calculator -->
+        <div class="section">
+            <h2>Battery Life Calculator</h2>
+            <div class="warning-box">
+                <strong>⚠️ Estimates:</strong> Battery life depends on usage patterns. These are estimates assuming moderate call frequency.
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label for="batteryCapacity">Battery Capacity (mAh)</label>
+                    <input type="number" id="batteryCapacity" value="7000" min="1000" max="20000" step="1000">
+                </div>
+                <div class="form-group">
+                    <label for="avgCallsPerDay">Average Calls Per Day</label>
+                    <input type="number" id="avgCallsPerDay" value="10" min="0" max="1000">
+                </div>
+            </div>
+            <div id="batteryEstimate" style="margin-top: 15px; padding: 15px; background: #d4edda; border-radius: 5px;">
+                <strong>Estimated Battery Life:</strong> <span id="batteryDays">--</span> days
+            </div>
+        </div>
+
+        <button onclick="generateConfig()">📝 Generate Configuration Files</button>
+
+        <div id="output" class="output" style="display: none;"></div>
+    </div>
+
+    <script>
+        function calculateBatteryLife() {
+            const capacity = parseInt(document.getElementById('batteryCapacity').value);
+            const callsPerDay = parseInt(document.getElementById('avgCallsPerDay').value);
+            const beaconInterval = parseInt(document.getElementById('beaconInterval').value);
+            const cpuSpeed = parseInt(document.getElementById('cpuSpeed').value);
+
+            // Power consumption estimates
+            const deepSleepCurrent = 0.1;  // mA
+            const activeCurrent = cpuSpeed / 133 * 25;  // Scale with CPU speed
+            const txCurrent = 120;  // mA during TX
+
+            // Calculate average current
+            let avgCurrent = deepSleepCurrent;
+
+            if (callsPerDay > 0) {
+                const callDurationMin = 5;  // Average 5 minutes per call
+                const activeTimePerDay = callsPerDay * callDurationMin * 60;  // seconds
+                const beaconsPerDay = (activeTimePerDay / (beaconInterval / 1000));
+
+                const txTimePerBeacon = 0.05;  // 50ms TX time
+                const txTimePerDay = beaconsPerDay * txTimePerBeacon;
+
+                avgCurrent = deepSleepCurrent * (1 - (activeTimePerDay / 86400)) +
+                             activeCurrent * (activeTimePerDay / 86400) +
+                             (txCurrent * txTimePerDay / 3600);
+            }
+
+            const batteryDays = Math.floor(capacity / avgCurrent / 24);
+            document.getElementById('batteryDays').textContent = batteryDays + ' (' + avgCurrent.toFixed(2) + ' mA avg)';
+        }
+
+        // Update battery estimate in real-time
+        document.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('change', calculateBatteryLife);
+        });
+        calculateBatteryLife();
+
+        function generateConfig() {
+            const config = {
+                totalFloors: parseInt(document.getElementById('totalFloors').value),
+                loraFreq: parseFloat(document.getElementById('loraFreq').value),
+                spreadingFactor: parseInt(document.getElementById('spreadingFactor').value),
+                txPower: parseInt(document.getElementById('txPower').value),
+                cpuSpeed: parseInt(document.getElementById('cpuSpeed').value),
+                beaconInterval: parseInt(document.getElementById('beaconInterval').value),
+                listenWindow: parseInt(document.getElementById('listenWindow').value),
+                proximityThreshold: parseInt(document.getElementById('proximityThreshold').value),
+                autoClearRSSI: parseInt(document.getElementById('autoClearRSSI').value),
+                broadcastInterval: parseInt(document.getElementById('broadcastInterval').value),
+                i2cAddress: document.getElementById('i2cAddress').value,
+                gatewayIP: document.getElementById('gatewayIP').value
+            };
+
+            let output = '';
+
+            // Generate platformio.ini for Floor Node
+            output += `====================================\n`;
+            output += `FLOOR NODE - platformio.ini\n`;
+            output += `====================================\n\n`;
+            output += `[env:adafruit_feather_rp2040]\n`;
+            output += `platform = https://github.com/maxgerhardt/platform-raspberrypi.git\n`;
+            output += `board = adafruit_feather_rp2040\n`;
+            output += `framework = arduino\n\n`;
+            output += `build_flags =\n`;
+            output += `    -D FLOOR_NUMBER=1  ; *** CHANGE FOR EACH FLOOR ***\n`;
+            output += `    -D CPU_SPEED_MHZ=${config.cpuSpeed}\n`;
+            output += `    -D LORA_FREQUENCY=${config.loraFreq}\n`;
+            output += `    -D SPREADING_FACTOR=${config.spreadingFactor}\n`;
+            output += `    -D TX_POWER=${config.txPower}\n`;
+            output += `    -D BEACON_INTERVAL_MS=${config.beaconInterval}\n`;
+            output += `    -D LISTEN_WINDOW_MS=${config.listenWindow}\n`;
+            output += `    -D PROXIMITY_THRESHOLD_FLOORS=${config.proximityThreshold}\n\n`;
+            output += `lib_deps =\n`;
+            output += `    adafruit/RadioHead@^1.120\n`;
+            output += `    bblanchon/ArduinoJson@^6.21.3\n\n`;
+
+            // Generate platformio.ini for Gateway
+            output += `====================================\n`;
+            output += `GATEWAY - platformio.ini\n`;
+            output += `====================================\n\n`;
+            output += `[env:lilygo-t-eth-elite]\n`;
+            output += `platform = espressif32\n`;
+            output += `board = esp32-s3-devkitc-1\n`;
+            output += `framework = arduino\n\n`;
+            output += `build_flags =\n`;
+            output += `    -D TOTAL_FLOORS=${config.totalFloors}\n`;
+            output += `    -D GATEWAY_FREQUENCY=${config.loraFreq}\n`;
+            output += `    -D I2C_SLAVE_ADDRESS=${config.i2cAddress}\n`;
+            output += `    -D ELEVATOR_BROADCAST_INTERVAL=${config.broadcastInterval}\n`;
+            output += `    -D AUTO_CLEAR_RSSI=${config.autoClearRSSI}\n\n`;
+            output += `lib_deps =\n`;
+            output += `    https://github.com/jgromes/RadioLib.git\n`;
+            output += `    bblanchon/ArduinoJson@^6.21.3\n`;
+            output += `    arduino-libraries/Ethernet@^2.0.2\n\n`;
+
+            // Generate network configuration
+            output += `====================================\n`;
+            output += `NETWORK CONFIGURATION\n`;
+            output += `====================================\n\n`;
+            output += `Gateway IP: ${config.gatewayIP}\n`;
+            output += `I2C Address: ${config.i2cAddress}\n`;
+            output += `Web Interface: http://${config.gatewayIP}/\n`;
+            output += `API Endpoints:\n`;
+            output += `  - http://${config.gatewayIP}/status\n`;
+            output += `  - http://${config.gatewayIP}/floors\n`;
+            output += `  - http://${config.gatewayIP}/clear?floor=X&type=Y\n\n`;
+
+            // Generate deployment checklist
+            output += `====================================\n`;
+            output += `DEPLOYMENT CHECKLIST\n`;
+            output += `====================================\n\n`;
+            output += `Floor Nodes (${config.totalFloors} total):\n`;
+            for (let i = 1; i <= config.totalFloors; i++) {
+                output += `  [ ] Floor ${i} - Update FLOOR_NUMBER=${i} in platformio.ini\n`;
+            }
+            output += `\nGateway:\n`;
+            output += `  [ ] Upload gateway firmware to T-ETH Elite\n`;
+            output += `  [ ] Connect SX1302 gateway shield\n`;
+            output += `  [ ] Connect CrowPanel display via I2C\n`;
+            output += `  [ ] Configure network settings\n`;
+            output += `  [ ] Test web interface\n\n`;
+
+            output += `Hardware BOM:\n`;
+            output += `  - ${config.totalFloors}x Adafruit Feather RP2040\n`;
+            output += `  - ${config.totalFloors}x RFM95 LoRa Radio Module (${config.loraFreq} MHz)\n`;
+            output += `  - ${config.totalFloors * 3}x Illuminated Push Buttons\n`;
+            output += `  - ${config.totalFloors * 2}x ER34615 3.6V Battery\n`;
+            output += `  - 1x LILYGO T-ETH Elite ESP32-S3\n`;
+            output += `  - 1x SX1302 Gateway Shield\n`;
+            output += `  - 1x CrowPanel 7" Display\n`;
+            output += `  - 1x 5V 3A Power Supply\n\n`;
+
+            document.getElementById('output').textContent = output;
+            document.getElementById('output').style.display = 'block';
+
+            // Scroll to output
+            document.getElementById('output').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
