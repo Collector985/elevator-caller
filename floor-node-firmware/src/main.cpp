@@ -1,22 +1,23 @@
 /**
- * Elevator Call Station - Floor Node Firmware v2.0
+ * Elevator Call Station - Floor Node Firmware v2.1
  * Hardware: Adafruit Feather RP2040 + RFM95 LoRa Radio
  *
- * Build with PlatformIO
- * Configure FLOOR_NUMBER in platformio.ini
+ * NEW: Floor number configured via CrowPanel, stored in EEPROM!
+ * No more recompiling for each floor!
  *
  * Features:
  * - 3 buttons: UP, DOWN, MATERIALS/LOAD
  * - 3 LED indicators
+ * - EEPROM floor number storage (configure via display)
+ * - Pairing mode (hold all 3 buttons on startup)
  * - RSSI-based auto-clear with elevator proximity
  * - Advanced power management (300+ day battery life)
- * - Periodic beaconing (2 second intervals)
- * - Clock speed optimized (48MHz)
  */
 
 #include <Arduino.h>
 #include <SPI.h>
 #include <RH_RF95.h>
+#include <EEPROM.h>
 
 // Pin definitions for Feather RP2040
 #define RFM95_CS   8
@@ -33,6 +34,11 @@
 #define LED_DOWN   9
 #define LED_LOAD   6
 
+// EEPROM addresses
+#define EEPROM_MAGIC_ADDR 0
+#define EEPROM_FLOOR_ADDR 4
+#define EEPROM_MAGIC 0xABCD1234
+
 // Protocol commands
 enum Commands {
   CMD_CALL_UP = 0x01,
@@ -42,7 +48,9 @@ enum Commands {
   CMD_CLEAR = 0x20,
   CMD_CLEAR_ALL = 0x21,
   CMD_ELEVATOR_POS = 0x30,
-  CMD_PING = 0x40
+  CMD_PING = 0x40,
+  CMD_SET_FLOOR = 0x50,      // NEW: Set floor number
+  CMD_PAIR_MODE = 0x51        // NEW: Enter pairing mode
 };
 
 enum CallState {
@@ -55,7 +63,8 @@ enum CallState {
 enum PowerMode {
   MODE_DEEP_SLEEP,
   MODE_BEACON,
-  MODE_ACTIVE
+  MODE_ACTIVE,
+  MODE_PAIRING         // NEW: Pairing mode
 };
 
 // Global objects
@@ -71,6 +80,7 @@ struct FloorCall {
   uint32_t loadTime = 0;
 } calls;
 
+uint8_t floorNumber = 0;  // Will be loaded from EEPROM
 uint8_t messageId = 0;
 uint32_t lastBeaconTime = 0;
 uint32_t lastButtonCheck = 0;
@@ -86,11 +96,17 @@ uint32_t autoClears = 0;
 
 // Function prototypes
 bool initializeLoRa();
+uint8_t loadFloorNumber();
+void saveFloorNumber(uint8_t floor);
+void enterPairingMode();
+void exitPairingMode();
+bool checkPairingButtons();
 void sendPacket(uint8_t command, uint8_t data);
 bool waitForAck(uint8_t command, uint32_t timeout);
 void checkForCommands();
 void handleCommand(uint8_t command, uint8_t data);
 void handleElevatorPosition(uint8_t floor);
+void handleSetFloor(uint8_t floor);
 void checkButtons();
 void placeCall(uint8_t callType);
 void handleActiveCalls();
@@ -103,24 +119,29 @@ void managePowerState();
 bool hasActiveCalls();
 void wakeUp();
 void ledStartupSequence();
+void ledPairingSequence();
 void flashLED(uint8_t pin, uint8_t times);
 void errorBlink();
 uint8_t calculateChecksum(uint8_t* data, uint8_t len);
 void printStatus();
 
 void setup() {
-  // Set clock speed (defined in platformio.ini)
+  // Set clock speed
   set_sys_clock_khz(CPU_SPEED_MHZ * 1000, true);
 
   Serial.begin(115200);
   delay(1000);
 
   Serial.println(F("========================================"));
-  Serial.print(F("Floor Node "));
-  Serial.print(FLOOR_NUMBER);
-  Serial.println(F(" v2.0"));
-  Serial.println(F("PlatformIO Build"));
+  Serial.println(F("Floor Node v2.1"));
+  Serial.println(F("Configurable Floor Assignment"));
   Serial.println(F("========================================"));
+
+  // Initialize EEPROM
+  EEPROM.begin(256);
+
+  // Load floor number from EEPROM
+  floorNumber = loadFloorNumber();
 
   // Initialize hardware
   pinMode(BTN_UP, INPUT_PULLUP);
@@ -130,6 +151,14 @@ void setup() {
   pinMode(LED_UP, OUTPUT);
   pinMode(LED_DOWN, OUTPUT);
   pinMode(LED_LOAD, OUTPUT);
+
+  // Check if all 3 buttons are held on startup = pairing mode
+  if (checkPairingButtons()) {
+    Serial.println(F("*** PAIRING MODE ACTIVATED ***"));
+    Serial.println(F("Use CrowPanel to assign floor number"));
+    enterPairingMode();
+    // Will stay in pairing mode until floor assigned
+  }
 
   ledStartupSequence();
 
@@ -141,7 +170,15 @@ void setup() {
   Serial.print(F("CPU Speed: "));
   Serial.print(CPU_SPEED_MHZ);
   Serial.println(F(" MHz"));
-  Serial.println(F("Floor node ready!"));
+
+  if (floorNumber == 0) {
+    Serial.println(F("*** NO FLOOR ASSIGNED ***"));
+    Serial.println(F("Hold all 3 buttons and reboot to enter pairing mode"));
+  } else {
+    Serial.print(F("Assigned Floor: "));
+    Serial.println(floorNumber);
+  }
+
   printStatus();
 
   // Configure wake interrupts
@@ -151,6 +188,14 @@ void setup() {
 }
 
 void loop() {
+  // Handle pairing mode
+  if (currentPowerMode == MODE_PAIRING) {
+    ledPairingSequence();
+    checkForCommands();
+    delay(100);
+    return;
+  }
+
   if (millis() - lastButtonCheck > 50) {
     checkButtons();
     lastButtonCheck = millis();
@@ -164,6 +209,94 @@ void loop() {
   managePowerState();
 }
 
+// ============= EEPROM FUNCTIONS =============
+uint8_t loadFloorNumber() {
+  uint32_t magic;
+  EEPROM.get(EEPROM_MAGIC_ADDR, magic);
+
+  if (magic == EEPROM_MAGIC) {
+    uint8_t floor;
+    EEPROM.get(EEPROM_FLOOR_ADDR, floor);
+    Serial.print(F("Loaded floor number from EEPROM: "));
+    Serial.println(floor);
+    return floor;
+  } else {
+    Serial.println(F("No floor number stored in EEPROM"));
+    return 0;  // Not configured
+  }
+}
+
+void saveFloorNumber(uint8_t floor) {
+  uint32_t magic = EEPROM_MAGIC;
+  EEPROM.put(EEPROM_MAGIC_ADDR, magic);
+  EEPROM.put(EEPROM_FLOOR_ADDR, floor);
+  EEPROM.commit();
+
+  floorNumber = floor;
+
+  Serial.print(F("Saved floor number to EEPROM: "));
+  Serial.println(floor);
+}
+
+// ============= PAIRING MODE =============
+bool checkPairingButtons() {
+  // Check if all 3 buttons are pressed
+  return (digitalRead(BTN_UP) == LOW &&
+          digitalRead(BTN_DOWN) == LOW &&
+          digitalRead(BTN_LOAD) == LOW);
+}
+
+void enterPairingMode() {
+  currentPowerMode = MODE_PAIRING;
+
+  // Send pairing broadcast every second
+  uint32_t lastPairBroadcast = 0;
+
+  while (currentPowerMode == MODE_PAIRING) {
+    if (millis() - lastPairBroadcast > 1000) {
+      // Send pairing request
+      uint8_t packet[5];
+      packet[0] = 0xFF;  // Broadcast
+      packet[1] = CMD_PAIR_MODE;
+      packet[2] = 0;
+      packet[3] = messageId++;
+      packet[4] = calculateChecksum(packet, 4);
+
+      rf95.send(packet, sizeof(packet));
+      rf95.waitPacketSent();
+
+      Serial.println(F("Pairing broadcast sent..."));
+      lastPairBroadcast = millis();
+    }
+
+    // Flash all LEDs
+    ledPairingSequence();
+
+    // Check for floor assignment
+    checkForCommands();
+
+    delay(100);
+  }
+}
+
+void exitPairingMode() {
+  currentPowerMode = MODE_DEEP_SLEEP;
+  Serial.println(F("Exiting pairing mode"));
+
+  // Flash success
+  for (int i = 0; i < 5; i++) {
+    digitalWrite(LED_UP, HIGH);
+    digitalWrite(LED_DOWN, HIGH);
+    digitalWrite(LED_LOAD, HIGH);
+    delay(100);
+    digitalWrite(LED_UP, LOW);
+    digitalWrite(LED_DOWN, LOW);
+    digitalWrite(LED_LOAD, LOW);
+    delay(100);
+  }
+}
+
+// ============= LORA FUNCTIONS =============
 bool initializeLoRa() {
   pinMode(RFM95_RST, OUTPUT);
   digitalWrite(RFM95_RST, HIGH);
@@ -190,7 +323,7 @@ bool initializeLoRa() {
 
 void sendPacket(uint8_t command, uint8_t data) {
   uint8_t packet[5];
-  packet[0] = FLOOR_NUMBER;
+  packet[0] = floorNumber;
   packet[1] = command;
   packet[2] = data;
   packet[3] = messageId++;
@@ -216,7 +349,7 @@ bool waitForAck(uint8_t command, uint32_t timeout) {
 
       if (rf95.recv(buf, &len)) {
         lastRSSI = rf95.lastRssi();
-        if (buf[0] == FLOOR_NUMBER && buf[1] == CMD_ACK && buf[2] == command) {
+        if (buf[0] == floorNumber && buf[1] == CMD_ACK && buf[2] == command) {
           Serial.print(F("ACK (RSSI: "));
           Serial.print(lastRSSI);
           Serial.println(F(" dBm)"));
@@ -237,7 +370,14 @@ void checkForCommands() {
     if (rf95.recv(buf, &len)) {
       lastRSSI = rf95.lastRssi();
 
-      if (buf[0] == FLOOR_NUMBER || buf[0] == 0xFF) {
+      // In pairing mode, accept any floor assignment
+      if (currentPowerMode == MODE_PAIRING && buf[1] == CMD_SET_FLOOR) {
+        handleSetFloor(buf[2]);
+        return;
+      }
+
+      // Normal mode - only accept messages for our floor or broadcast
+      if (buf[0] == floorNumber || buf[0] == 0xFF) {
         handleCommand(buf[1], buf[2]);
       } else if (buf[1] == CMD_ELEVATOR_POS) {
         handleElevatorPosition(buf[2]);
@@ -276,12 +416,44 @@ void handleCommand(uint8_t command, uint8_t data) {
     case CMD_PING:
       sendStatusPacket();
       break;
+
+    case CMD_SET_FLOOR:
+      handleSetFloor(data);
+      break;
   }
 }
 
+void handleSetFloor(uint8_t floor) {
+  Serial.print(F("*** FLOOR ASSIGNED: "));
+  Serial.print(floor);
+  Serial.println(F(" ***"));
+
+  saveFloorNumber(floor);
+
+  // Exit pairing mode if we're in it
+  if (currentPowerMode == MODE_PAIRING) {
+    exitPairingMode();
+  }
+
+  // Send ACK
+  uint8_t packet[5];
+  packet[0] = floorNumber;
+  packet[1] = CMD_ACK;
+  packet[2] = CMD_SET_FLOOR;
+  packet[3] = messageId++;
+  packet[4] = calculateChecksum(packet, 4);
+
+  rf95.send(packet, sizeof(packet));
+  rf95.waitPacketSent();
+
+  printStatus();
+}
+
 void handleElevatorPosition(uint8_t floor) {
+  if (floorNumber == 0) return;  // Not configured yet
+
   elevatorFloor = floor;
-  int distance = abs(elevatorFloor - FLOOR_NUMBER);
+  int distance = abs(elevatorFloor - floorNumber);
   bool wasNearby = elevatorNearby;
   elevatorNearby = (distance <= PROXIMITY_THRESHOLD_FLOORS);
 
@@ -300,6 +472,8 @@ void handleElevatorPosition(uint8_t floor) {
 }
 
 void checkButtons() {
+  if (floorNumber == 0) return;  // Not configured yet
+
   if (digitalRead(BTN_UP) == LOW && calls.upState == STATE_IDLE) {
     delay(50);
     if (digitalRead(BTN_UP) == LOW) placeCall(CMD_CALL_UP);
@@ -468,6 +642,19 @@ void ledStartupSequence() {
   }
 }
 
+void ledPairingSequence() {
+  static uint32_t lastBlink = 0;
+  static bool state = false;
+
+  if (millis() - lastBlink > 250) {
+    lastBlink = millis();
+    state = !state;
+    digitalWrite(LED_UP, state);
+    digitalWrite(LED_DOWN, state);
+    digitalWrite(LED_LOAD, state);
+  }
+}
+
 void flashLED(uint8_t pin, uint8_t times) {
   for (uint8_t i = 0; i < times; i++) {
     digitalWrite(pin, HIGH);
@@ -502,7 +689,11 @@ uint8_t calculateChecksum(uint8_t* data, uint8_t len) {
 void printStatus() {
   Serial.println(F("Status:"));
   Serial.print(F("  Floor: "));
-  Serial.println(FLOOR_NUMBER);
+  if (floorNumber == 0) {
+    Serial.println(F("NOT CONFIGURED"));
+  } else {
+    Serial.println(floorNumber);
+  }
   Serial.print(F("  TX: "));
   Serial.print(totalTransmissions);
   Serial.print(F(", Clears: "));
