@@ -142,7 +142,7 @@ lv_obj_t *make_call_button(lv_obj_t *parent,
                            uint8_t floor,
                            lv_color_t base_color) {
   lv_obj_t *btn = lv_btn_create(parent);
-  lv_obj_set_size(btn, 60, 38);
+  lv_obj_set_size(btn, 36, 36);
   lv_obj_add_style(btn, &style_call_btn, 0);
   lv_obj_add_style(btn, &style_call_btn_pressed, LV_STATE_PRESSED);
   lv_obj_add_style(btn, &style_call_btn_checked, LV_STATE_CHECKED);
@@ -175,21 +175,23 @@ void add_floor_row(lv_obj_t *column, uint8_t floor) {
   lv_obj_set_height(row, 44);
   lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(row, 0, 0);
-  lv_obj_set_style_pad_left(row, 0, 0);
-  lv_obj_set_style_pad_right(row, 0, 0);
-  lv_obj_set_style_pad_column(row, 6, 0);
+  lv_obj_set_style_pad_left(row, 2, 0);
+  lv_obj_set_style_pad_right(row, 2, 0);
+  lv_obj_set_style_pad_column(row, 8, 0);
   lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
 
   lv_obj_t *card = make_floor_box(row, floor);
+  lv_obj_set_flex_grow(card, 0);
   floor_widgets[floor].card = card;
 
   lv_obj_t *btn_group = lv_obj_create(row);
   lv_obj_set_style_bg_opa(btn_group, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(btn_group, 0, 0);
   lv_obj_set_style_pad_all(btn_group, 0, 0);
+  lv_obj_set_style_pad_column(btn_group, 6, 0);
   lv_obj_clear_flag(btn_group, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_width(btn_group, lv_pct(100));
   lv_obj_set_flex_flow(btn_group, LV_FLEX_FLOW_ROW);
