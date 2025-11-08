@@ -1,0 +1,15 @@
+{
+  "background_gradient": ["#667eea", "#764ba2"],
+  "shaft_primary": "#2c3e50",
+  "shaft_secondary": "#34495e",
+  "floor_border": "rgba(255,255,255,0.1)",
+  "text_primary": "#ffffff",
+  "btn_up": "#2ecc71",
+  "btn_down": "#e74c3c",
+  "btn_load": "#f39c12",
+  "status_panel_bg": "#ecf0f1",
+  "status_text": "#2c3e50",
+  "highlight": "#3498db",
+  "rssi_good": "#00ff00",
+  "rssi_poor": "#ff6b6b"
+}
