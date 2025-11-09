@@ -6,7 +6,3 @@ previous/
 *.rar
 librariesAdvance7.0/
 # Ignore bulky reference material and editor exports
-Hardware Docs/
-lvgl-design/
-crowpanel-display/lv_port_linux/
-gt911.txt

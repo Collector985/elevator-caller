@@ -1,0 +1,325 @@
+<screen name="shaft_screen">
+    <!-- Main screen with purple background -->
+    <obj type="obj">
+        <size width="480" height="800"/>
+        <bg_color value="UI_COLOR_BG"/>
+        <scrollable value="false"/>
+
+        <!-- White panel container -->
+        <obj name="panel" type="obj">
+            <size width="PANEL_WIDTH" height="PANEL_HEIGHT"/>
+            <align type="top_mid" y="-4"/>
+            <bg_color value="UI_COLOR_PANEL"/>
+            <radius value="12"/>
+            <pad_all value="16"/>
+            <scrollable value="false"/>
+
+            <!-- Column 0 - Left (Floors 34-23) -->
+            <obj name="column_0" type="obj">
+                <size width="137" height="624"/>
+                <pos x="0" y="0"/>
+                <bg_opa value="0"/>
+                <border_width value="0"/>
+                <pad_all value="0"/>
+                <pad_row value="4"/>
+                <scrollable value="false"/>
+                <flex_flow value="column"/>
+                <flex_align main="start" cross="start" track="start"/>
+
+                <!-- Floor 34 (top floor - no UP button) -->
+                <obj type="obj" name="floor_row_34">
+                    <size width="100%" height="FLOOR_ROW_HEIGHT"/>
+                    <bg_opa value="0"/>
+                    <border_width value="0"/>
+                    <pad_left value="4"/>
+                    <pad_right value="4"/>
+                    <pad_column value="6"/>
+                    <scrollable value="false"/>
+                    <flex_flow value="row"/>
+                    <flex_align main="space_between" cross="center" track="center"/>
+
+                    <obj type="obj"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/></obj>
+                    <obj name="floor_card_34" type="btn">
+                        <size width="58" height="FLOOR_CARD_HEIGHT"/>
+                        <style base="style_floor_card"/>
+                        <flex_grow value="1"/>
+                        <obj type="label"><text value="34"/><align type="center"/></obj>
+                    </obj>
+                    <obj name="btn_down_34" type="btn">
+                        <size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/>
+                        <bg_opa value="0"/>
+                        <border_width value="0"/>
+                        <pad_all value="0"/>
+                        <obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj>
+                    </obj>
+                </obj>
+
+                <!-- Floors 33-23 (with both UP and DOWN buttons) -->
+                <obj type="obj" name="floor_row_33">
+                    <size width="100%" height="FLOOR_ROW_HEIGHT"/>
+                    <bg_opa value="0"/>
+                    <border_width value="0"/>
+                    <pad_left value="4"/>
+                    <pad_right value="4"/>
+                    <pad_column value="6"/>
+                    <scrollable value="false"/>
+                    <flex_flow value="row"/>
+                    <flex_align main="space_between" cross="center" track="center"/>
+                    <obj name="btn_up_33" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj>
+                    <obj name="floor_card_33" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="33"/><align type="center"/></obj></obj>
+                    <obj name="btn_down_33" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj>
+                </obj>
+
+                <obj type="obj" name="floor_row_32"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_32" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_32" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="32"/><align type="center"/></obj></obj><obj name="btn_down_32" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_31"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_31" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_31" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="31"/><align type="center"/></obj></obj><obj name="btn_down_31" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_30"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_30" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_30" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="30"/><align type="center"/></obj></obj><obj name="btn_down_30" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_29"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_29" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_29" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="29"/><align type="center"/></obj></obj><obj name="btn_down_29" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_28"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_28" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_28" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="28"/><align type="center"/></obj></obj><obj name="btn_down_28" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_27"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_27" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_27" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="27"/><align type="center"/></obj></obj><obj name="btn_down_27" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_26"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_26" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_26" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="26"/><align type="center"/></obj></obj><obj name="btn_down_26" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_25"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_25" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_25" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="25"/><align type="center"/></obj></obj><obj name="btn_down_25" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_24"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_24" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_24" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="24"/><align type="center"/></obj></obj><obj name="btn_down_24" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_23"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_23" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_23" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="23"/><align type="center"/></obj></obj><obj name="btn_down_23" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+            </obj>
+
+            <!-- Column 1 - Middle (Floors 22-12) -->
+            <obj name="column_1" type="obj">
+                <size width="137" height="624"/>
+                <pos x="149" y="0"/>
+                <bg_opa value="0"/>
+                <border_width value="0"/>
+                <pad_all value="0"/>
+                <pad_row value="4"/>
+                <scrollable value="false"/>
+                <flex_flow value="column"/>
+                <flex_align main="start" cross="start" track="start"/>
+
+                <obj type="obj" name="floor_row_22"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_22" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_22" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="22"/><align type="center"/></obj></obj><obj name="btn_down_22" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_21"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_21" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_21" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="21"/><align type="center"/></obj></obj><obj name="btn_down_21" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_20"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_20" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_20" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="20"/><align type="center"/></obj></obj><obj name="btn_down_20" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_19"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_19" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_19" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="19"/><align type="center"/></obj></obj><obj name="btn_down_19" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_18"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_18" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_18" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="18"/><align type="center"/></obj></obj><obj name="btn_down_18" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_17"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_17" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_17" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="17"/><align type="center"/></obj></obj><obj name="btn_down_17" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_16"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_16" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_16" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="16"/><align type="center"/></obj></obj><obj name="btn_down_16" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_15"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_15" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_15" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="15"/><align type="center"/></obj></obj><obj name="btn_down_15" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_14"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_14" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_14" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="14"/><align type="center"/></obj></obj><obj name="btn_down_14" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_13"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_13" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_13" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="13"/><align type="center"/></obj></obj><obj name="btn_down_13" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_12"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_12" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_12" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="12"/><align type="center"/></obj></obj><obj name="btn_down_12" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+            </obj>
+
+            <!-- Column 2 - Right (Floors 11-1, P3, P2, P1) -->
+            <obj name="column_2" type="obj">
+                <size width="137" height="624"/>
+                <pos x="298" y="0"/>
+                <bg_opa value="0"/>
+                <border_width value="0"/>
+                <pad_all value="0"/>
+                <pad_row value="4"/>
+                <scrollable value="false"/>
+                <flex_flow value="column"/>
+                <flex_align main="start" cross="start" track="start"/>
+
+                <obj type="obj" name="floor_row_11"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_11" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_11" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="11"/><align type="center"/></obj></obj><obj name="btn_down_11" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_10"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_10" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_10" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="10"/><align type="center"/></obj></obj><obj name="btn_down_10" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_9"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_9" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_9" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="9"/><align type="center"/></obj></obj><obj name="btn_down_9" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_8"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_8" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_8" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="8"/><align type="center"/></obj></obj><obj name="btn_down_8" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_7"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_7" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_7" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="7"/><align type="center"/></obj></obj><obj name="btn_down_7" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_6"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_6" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_6" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="6"/><align type="center"/></obj></obj><obj name="btn_down_6" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_5"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_5" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_5" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="5"/><align type="center"/></obj></obj><obj name="btn_down_5" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_4"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_4" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_4" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="4"/><align type="center"/></obj></obj><obj name="btn_down_4" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_3"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_3" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_3" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="3"/><align type="center"/></obj></obj><obj name="btn_down_3" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <obj type="obj" name="floor_row_2"><size width="100%" height="FLOOR_ROW_HEIGHT"/><bg_opa value="0"/><border_width value="0"/><pad_left value="4"/><pad_right value="4"/><pad_column value="6"/><scrollable value="false"/><flex_flow value="row"/><flex_align main="space_between" cross="center" track="center"/><obj name="btn_up_2" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj><obj name="floor_card_2" type="btn"><size width="58" height="FLOOR_CARD_HEIGHT"/><style base="style_floor_card"/><flex_grow value="1"/><obj type="label"><text value="2"/><align type="center"/></obj></obj><obj name="btn_down_2" type="btn"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/><border_width value="0"/><pad_all value="0"/><obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj></obj></obj>
+
+                <!-- Floor 1 (bottom floor - no DOWN button) -->
+                <obj type="obj" name="floor_row_1">
+                    <size width="100%" height="FLOOR_ROW_HEIGHT"/>
+                    <bg_opa value="0"/>
+                    <border_width value="0"/>
+                    <pad_left value="4"/>
+                    <pad_right value="4"/>
+                    <pad_column value="6"/>
+                    <scrollable value="false"/>
+                    <flex_flow value="row"/>
+                    <flex_align main="space_between" cross="center" track="center"/>
+
+                    <obj name="btn_up_1" type="btn">
+                        <size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/>
+                        <bg_opa value="0"/>
+                        <border_width value="0"/>
+                        <pad_all value="0"/>
+                        <obj type="label"><text value="↑"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj>
+                    </obj>
+                    <obj name="floor_card_1" type="btn">
+                        <size width="58" height="FLOOR_CARD_HEIGHT"/>
+                        <style base="style_floor_card"/>
+                        <flex_grow value="1"/>
+                        <obj type="label"><text value="1"/><align type="center"/></obj>
+                    </obj>
+                    <obj type="obj"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/></obj>
+                </obj>
+
+                <!-- Parking Floors (no UP button) -->
+                <obj type="obj" name="floor_row_P3">
+                    <size width="100%" height="FLOOR_ROW_HEIGHT"/>
+                    <bg_opa value="0"/>
+                    <border_width value="0"/>
+                    <pad_left value="4"/>
+                    <pad_right value="4"/>
+                    <pad_column value="6"/>
+                    <scrollable value="false"/>
+                    <flex_flow value="row"/>
+                    <flex_align main="space_between" cross="center" track="center"/>
+
+                    <obj type="obj"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/></obj>
+                    <obj name="floor_card_P3" type="btn">
+                        <size width="58" height="FLOOR_CARD_HEIGHT"/>
+                        <style base="style_floor_card"/>
+                        <flex_grow value="1"/>
+                        <obj type="label"><text value="P3"/><align type="center"/></obj>
+                    </obj>
+                    <obj name="btn_down_P3" type="btn">
+                        <size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/>
+                        <bg_opa value="0"/>
+                        <border_width value="0"/>
+                        <pad_all value="0"/>
+                        <obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj>
+                    </obj>
+                </obj>
+
+                <obj type="obj" name="floor_row_P2">
+                    <size width="100%" height="FLOOR_ROW_HEIGHT"/>
+                    <bg_opa value="0"/>
+                    <border_width value="0"/>
+                    <pad_left value="4"/>
+                    <pad_right value="4"/>
+                    <pad_column value="6"/>
+                    <scrollable value="false"/>
+                    <flex_flow value="row"/>
+                    <flex_align main="space_between" cross="center" track="center"/>
+
+                    <obj type="obj"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/></obj>
+                    <obj name="floor_card_P2" type="btn">
+                        <size width="58" height="FLOOR_CARD_HEIGHT"/>
+                        <style base="style_floor_card"/>
+                        <flex_grow value="1"/>
+                        <obj type="label"><text value="P2"/><align type="center"/></obj>
+                    </obj>
+                    <obj name="btn_down_P2" type="btn">
+                        <size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/>
+                        <bg_opa value="0"/>
+                        <border_width value="0"/>
+                        <pad_all value="0"/>
+                        <obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj>
+                    </obj>
+                </obj>
+
+                <obj type="obj" name="floor_row_P1">
+                    <size width="100%" height="FLOOR_ROW_HEIGHT"/>
+                    <bg_opa value="0"/>
+                    <border_width value="0"/>
+                    <pad_left value="4"/>
+                    <pad_right value="4"/>
+                    <pad_column value="6"/>
+                    <scrollable value="false"/>
+                    <flex_flow value="row"/>
+                    <flex_align main="space_between" cross="center" track="center"/>
+
+                    <obj type="obj"><size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/><bg_opa value="0"/></obj>
+                    <obj name="floor_card_P1" type="btn">
+                        <size width="58" height="FLOOR_CARD_HEIGHT"/>
+                        <style base="style_floor_card"/>
+                        <flex_grow value="1"/>
+                        <obj type="label"><text value="P1"/><align type="center"/></obj>
+                    </obj>
+                    <obj name="btn_down_P1" type="btn">
+                        <size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/>
+                        <bg_opa value="0"/>
+                        <border_width value="0"/>
+                        <pad_all value="0"/>
+                        <obj type="label"><text value="↓"/><text_color value="UI_COLOR_INACTIVE"/><align type="center"/></obj>
+                    </obj>
+                </obj>
+
+            </obj>
+
+        </obj>
+
+        <!-- Navigation bar at bottom -->
+        <obj name="nav_bar" type="obj">
+            <size width="480" height="NAV_HEIGHT"/>
+            <align type="bottom_mid" y="0"/>
+            <bg_color value="UI_COLOR_NAV"/>
+            <radius value="0"/>
+            <pad_all value="10"/>
+            <scrollable value="false"/>
+
+            <!-- SHAFT button (active) -->
+            <obj name="btn_shaft" type="btn">
+                <size width="140" height="40"/>
+                <pos x="10" y="10"/>
+                <style base="style_nav_btn"/>
+                <style state="default" base="style_nav_btn_active"/>
+
+                <obj type="label">
+                    <text value="SHAFT"/>
+                    <align type="center"/>
+                </obj>
+            </obj>
+
+            <!-- GRID button -->
+            <obj name="btn_grid" type="btn">
+                <size width="140" height="40"/>
+                <pos x="170" y="10"/>
+                <style base="style_nav_btn"/>
+
+                <obj type="label">
+                    <text value="GRID"/>
+                    <align type="center"/>
+                </obj>
+            </obj>
+
+            <!-- CONTROL button -->
+            <obj name="btn_control" type="btn">
+                <size width="140" height="40"/>
+                <pos x="330" y="10"/>
+                <style base="style_nav_btn"/>
+
+                <obj type="label">
+                    <text value="CONTROL"/>
+                    <align type="center"/>
+                </obj>
+            </obj>
+        </obj>
+
+    </obj>
+</screen>

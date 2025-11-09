@@ -1,0 +1,55 @@
+<widget name="floor_row">
+    <!-- Floor row container - horizontal flex layout -->
+    <obj type="obj">
+        <size width="100%" height="FLOOR_ROW_HEIGHT"/>
+        <bg_opa value="0"/>
+        <border_width value="0"/>
+        <pad_left value="4"/>
+        <pad_right value="4"/>
+        <pad_column value="6"/>
+        <scrollable value="false"/>
+        <flex_flow value="row"/>
+        <flex_align main="space_between" cross="center" track="center"/>
+
+        <!-- UP call button -->
+        <obj name="btn_up" type="btn">
+            <size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/>
+            <bg_opa value="0"/>
+            <border_width value="0"/>
+            <pad_all value="0"/>
+
+            <obj type="label">
+                <text value="↑"/>
+                <text_color value="UI_COLOR_INACTIVE"/>
+                <align type="center"/>
+            </obj>
+        </obj>
+
+        <!-- Floor number card -->
+        <obj name="floor_card" type="btn">
+            <size width="58" height="FLOOR_CARD_HEIGHT"/>
+            <style base="style_floor_card"/>
+            <flex_grow value="1"/>
+
+            <obj name="floor_label" type="label">
+                <text value="??"/>
+                <align type="center"/>
+            </obj>
+        </obj>
+
+        <!-- DOWN call button -->
+        <obj name="btn_down" type="btn">
+            <size width="CALL_BTN_SIZE" height="CALL_BTN_SIZE"/>
+            <bg_opa value="0"/>
+            <border_width value="0"/>
+            <pad_all value="0"/>
+
+            <obj type="label">
+                <text value="↓"/>
+                <text_color value="UI_COLOR_INACTIVE"/>
+                <align type="center"/>
+            </obj>
+        </obj>
+
+    </obj>
+</widget>
