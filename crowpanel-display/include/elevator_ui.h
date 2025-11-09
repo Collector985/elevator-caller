@@ -21,3 +21,4 @@ void elevator_ui_apply_floor_state(uint8_t floor,
                                    bool log_event = false);
 void elevator_ui_set_current_floor(uint8_t floor, bool log_event = false);
 void elevator_ui_log_message(const char *msg);
+void elevator_ui_tick(void);

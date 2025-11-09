@@ -6,7 +6,6 @@
 
 #include "elevator_ui.h"
 #include "lgfx_setup.h"
-#include "ui_styles.h"
 #include "ui_theme.h"
 
 #ifndef TOTAL_FLOORS
@@ -55,7 +54,6 @@ static uint32_t lastGatewayProbe = 0;
 static uint32_t lastI2CRequest = 0;
 static uint32_t lastTickUpdate = 0;
 
-static void handleUICall(uint8_t floor, ElevatorCallType type, bool active);
 static void initDisplay();
 static void initLVGL();
 static void lvglTouchRead(lv_indev_drv_t *, lv_indev_data_t *data);
@@ -140,12 +138,8 @@ void setup() {
 
   initLVGL();
   ui_theme_init();
-  ui_styles_init();
 
   elevator_ui_init();
-  elevator_ui_set_call_handler(handleUICall);
-
-  elevator_ui_log_message("SYSTEM: Display online");
 
   uint32_t now = millis();
   lastGatewayProbe = now;
@@ -159,6 +153,7 @@ void loop() {
   lv_tick_inc(now - lastTickUpdate);
   lastTickUpdate = now;
   lv_timer_handler();
+  elevator_ui_tick();
 
   if (now - lastGatewayProbe > 2000) {
     gatewayAvailable = probeGateway();
