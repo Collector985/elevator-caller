@@ -24,14 +24,11 @@
 
 constexpr uint8_t STC_BACKLIGHT_ADDR = 0x30;
 constexpr uint8_t STC_CMD_BUZZER_OFF = 247;
-
-constexpr uint16_t TOUCH_X_MIN = 0;
-constexpr uint16_t TOUCH_X_MAX = 799;
-constexpr uint16_t TOUCH_Y_MIN = 0;
-constexpr uint16_t TOUCH_Y_MAX = 479;
-constexpr bool TOUCH_SWAP_XY = true;
-constexpr bool TOUCH_INVERT_X = false;
-constexpr bool TOUCH_INVERT_Y = true;
+constexpr uint8_t PCA9557_ADDR = 0x18;
+constexpr uint8_t PCA_PIN_LED_BK = 1;
+constexpr uint8_t PCA_PIN_TP_RST = 2;
+constexpr uint8_t PCA_PIN_AUDIO_MUTE = 3;
+constexpr uint8_t PCA_PIN_AUDIO_SHUT = 4;
 
 struct DisplayPacket {
   uint8_t floor;
@@ -63,6 +60,7 @@ static void initDisplay();
 static void initLVGL();
 static void lvglTouchRead(lv_indev_drv_t *, lv_indev_data_t *data);
 static void initBacklightControl();
+static void resetTouchController();
 static void muteHardwareBuzzer();
 static void stcSetBacklight(uint8_t level);
 static void stcDisableBuzzer();
@@ -81,12 +79,65 @@ void setup() {
   Serial.println(F("========================================"));
 
   muteHardwareBuzzer();
-  initBacklightControl();
 
-  Wire.begin(17, 18);
+  // Initialize I2C buses FIRST before anything else
+  Wire.end();  // Ensure default Wire instance is stopped before reconfiguring pins
+  Wire.begin(17, 18);  // Gateway I2C bus
   Wire.setClock(100000);
 
+  ioBus.begin(15, 16, 400000);  // Shared backlight/touch I2C bus
+  delay(100);  // Give I2C time to stabilize
+
+  initBacklightControl();
+  resetTouchController();
+
+  // Scan shared backlight/touch I2C bus (GPIO 15/16)
+  Serial.println("===========================================");
+  Serial.println("Scanning shared I2C bus (GPIO 15=SDA, 16=SCL)...");
+  Serial.println("===========================================");
+  int deviceCount = 0;
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    ioBus.beginTransmission(addr);
+    uint8_t error = ioBus.endTransmission();
+    if (error == 0) {
+      Serial.printf(">>> I2C device found at 0x%02X", addr);
+      if (addr == 0x18) {
+        Serial.print(" (TCA9534 I/O Expander)");
+      } else if (addr == 0x30) {
+        Serial.print(" (Backlight Controller)");
+      } else if (addr == 0x5D || addr == 0x14) {
+        Serial.print(" (GT911 Touch Controller)");
+      }
+      Serial.println();
+      deviceCount++;
+    }
+  }
+  Serial.printf("Found %d device(s) on shared bus\n", deviceCount);
+  Serial.println("===========================================");
+
   initDisplay();
+
+  // Test if touch is working
+  Serial.println("===========================================");
+  Serial.println("Testing GT911 Touch Controller...");
+  Serial.println("===========================================");
+
+  delay(100);
+  uint16_t testX, testY;
+  bool touchDetected = tft.getTouch(&testX, &testY);
+
+  if (touchDetected) {
+    Serial.printf("SUCCESS: Touch controller responding! X=%d, Y=%d\n", testX, testY);
+  } else {
+    Serial.println("WARNING: Touch controller NOT responding");
+    Serial.println("Possible issues:");
+    Serial.println("  - GT911 not on I2C bus");
+    Serial.println("  - Wrong I2C address (check scan above)");
+    Serial.println("  - Touch needs reset sequence");
+    Serial.println("  - Touch needs configuration data");
+  }
+  Serial.println("===========================================");
+
   initLVGL();
   ui_theme_init();
   ui_styles_init();
@@ -169,41 +220,43 @@ static void initLVGL() {
 static void lvglTouchRead(lv_indev_drv_t *, lv_indev_data_t *data) {
   uint16_t rawX = 0;
   uint16_t rawY = 0;
-  if (!tft.getTouch(&rawX, &rawY)) {
+  bool touched = tft.getTouch(&rawX, &rawY);
+
+  static bool lastTouched = false;
+  static uint32_t lastDebugPrint = 0;
+  static uint32_t lastUiLog = 0;
+
+  if (!touched) {
+    if (lastTouched) {
+      Serial.println("TOUCH: Released");
+    }
+    lastTouched = false;
     data->state = LV_INDEV_STATE_RELEASED;
     return;
   }
 
-  auto clamp = [](uint16_t v, uint16_t minV, uint16_t maxV) {
-    if (v < minV) return minV;
-    if (v > maxV) return maxV;
-    return v;
-  };
+  lastTouched = true;
 
-  uint16_t xMin = TOUCH_X_MIN;
-  uint16_t xMax = TOUCH_X_MAX;
-  uint16_t yMin = TOUCH_Y_MIN;
-  uint16_t yMax = TOUCH_Y_MAX;
+  uint16_t mappedX = rawX;
+  uint16_t mappedY = rawY;
 
-  uint16_t adjX = clamp(rawX, xMin, xMax);
-  uint16_t adjY = clamp(rawY, yMin, yMax);
+  if (mappedX >= SCREEN_WIDTH) mappedX = SCREEN_WIDTH - 1;
+  if (mappedY >= SCREEN_HEIGHT) mappedY = SCREEN_HEIGHT - 1;
 
-  if (TOUCH_SWAP_XY) {
-    std::swap(adjX, adjY);
-    std::swap(xMin, yMin);
-    std::swap(xMax, yMax);
-  }
-  if (TOUCH_INVERT_X) {
-    adjX = xMax - (adjX - xMin);
-  }
-  if (TOUCH_INVERT_Y) {
-    adjY = yMax - (adjY - yMin);
+  uint32_t now = millis();
+  if (now - lastDebugPrint > 500) {
+    Serial.printf("TOUCH: Raw(%u,%u) -> Mapped(%u,%u)\n", rawX, rawY, mappedX,
+                  mappedY);
+    lastDebugPrint = now;
   }
 
-  uint16_t mappedX =
-      (uint32_t)(adjX - xMin) * (SCREEN_WIDTH - 1) / (xMax - xMin);
-  uint16_t mappedY =
-      (uint32_t)(adjY - yMin) * (SCREEN_HEIGHT - 1) / (yMax - yMin);
+  if (now - lastUiLog > 1000) {
+    char buf[64];
+    snprintf(buf, sizeof(buf), "Touch raw(%u,%u) -> mapped(%u,%u)", rawX, rawY,
+             mappedX, mappedY);
+    elevator_ui_log_message(buf);
+    lastUiLog = now;
+  }
 
   data->state = LV_INDEV_STATE_PRESSED;
   data->point.x = mappedX;
@@ -211,20 +264,33 @@ static void lvglTouchRead(lv_indev_drv_t *, lv_indev_data_t *data) {
 }
 
 static void initBacklightControl() {
-  ioBus.begin(15, 16, 400000);
+  // ioBus already initialized in setup()
   ioExpander.attach(ioBus);
-  ioExpander.setDeviceAddress(0x18);
+  ioExpander.setDeviceAddress(PCA9557_ADDR);
   ioExpander.config(TCA9534::Config::OUT);
   ioExpander.output(0xFF);
 
-  ioExpander.output(1, TCA9534::Level::H);
-  ioExpander.output(2, TCA9534::Level::L);
-  delay(20);
-  ioExpander.output(2, TCA9534::Level::H);
-  delay(50);
+  ioExpander.output(PCA_PIN_LED_BK, TCA9534::Level::H);
+  ioExpander.output(PCA_PIN_AUDIO_MUTE, TCA9534::Level::H);
+  ioExpander.output(PCA_PIN_AUDIO_SHUT, TCA9534::Level::H);
+
+  // Hold touch controller in reset until we intentionally release it
+  ioExpander.output(PCA_PIN_TP_RST, TCA9534::Level::L);
+  delay(10);
 
   stcSetBacklight(8);
   stcDisableBuzzer();
+}
+
+static void resetTouchController() {
+  // Follow the GT911 address select sequence: RESET low, INT high, RESET high, INT hi-Z
+  pinMode(1, OUTPUT);
+  digitalWrite(1, HIGH);
+  delay(2);
+  ioExpander.output(PCA_PIN_TP_RST, TCA9534::Level::H);
+  delay(5);
+  pinMode(1, INPUT_PULLUP);
+  delay(50);
 }
 
 static void muteHardwareBuzzer() {

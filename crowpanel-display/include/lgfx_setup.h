@@ -71,13 +71,14 @@ class LGFX : public lgfx::LGFX_Device {
     touch_cfg.y_max = 479;
     touch_cfg.x_min = 0;
     touch_cfg.y_min = 0;
-    touch_cfg.pin_sda = GPIO_NUM_15;
-    touch_cfg.pin_scl = GPIO_NUM_16;
-    touch_cfg.pin_int = GPIO_NUM_NC;
-    touch_cfg.pin_rst = GPIO_NUM_NC;
+    touch_cfg.pin_sda = GPIO_NUM_15;  // SCHEMATIC: Shared I2C with backlight (IO15_SDA)
+    touch_cfg.pin_scl = GPIO_NUM_16;  // SCHEMATIC: Shared I2C with backlight (IO16_SCL)
+    touch_cfg.pin_int = GPIO_NUM_1;   // SCHEMATIC: Touch interrupt (IO1_TP_INT)
+    touch_cfg.pin_rst = GPIO_NUM_NC;  // SCHEMATIC: Reset via PCA I/O expander
     touch_cfg.freq = 400000;
     touch_cfg.i2c_port = I2C_NUM_1;
-    touch_cfg.bus_shared = true;
+    touch_cfg.i2c_addr = 0x14;  // GT911 I2C address
+    touch_cfg.bus_shared = true;  // SCHEMATIC: Shares I2C with backlight/IO expander
     _touch_instance.config(touch_cfg);
     _panel_instance.setTouch(&_touch_instance);
 
