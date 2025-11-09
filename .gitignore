@@ -6,3 +6,4 @@ previous/
 *.rar
 librariesAdvance7.0/
 # Ignore bulky reference material and editor exports
+lv_gui_builder/node_modules/
