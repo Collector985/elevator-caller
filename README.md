@@ -47,21 +47,37 @@ This system replaces traditional wired elevator call stations with wireless LoRa
 
 ## 🛠️ Hardware Requirements
 
+### ⚠️ Platform Clarification
+
+This project uses **three different microcontroller platforms**:
+
+| Device | Chip | Platform | Purpose |
+|--------|------|----------|---------|
+| **Floor Nodes** | RP2040 | Raspberry Pi | Battery-powered call buttons |
+| **Gateway** | ESP32-S3 | Espressif | Central LoRa receiver |
+| **Display** | ESP32-S3 | Espressif | Operator interface |
+| **T-Beam (optional)** | ESP32-S3 | Espressif | Testing simulator |
+
+**Important**: Only the floor nodes use Raspberry Pi silicon (RP2040). The gateway and display use ESP32-S3!
+
 ### Floor Node (×30-40, one per floor)
-- **Adafruit Feather RP2040** - Main controller
+- **Adafruit Feather RP2040** - Main controller (Raspberry Pi RP2040 chip)
 - **RFM95 LoRa Radio Module** (915 MHz for US, 868 MHz for EU)
 - **3× R16-503AD Illuminated Push Buttons** (UP, DOWN, LOAD)
 - **2× ER34615 3.6V Batteries** (7000mAh total capacity)
 - **Enclosure** (weatherproof for construction sites)
 
 ### Central Gateway Station (×1)
-- **LILYGO T-ETH Elite ESP32-S3** - Main gateway controller
-- **SX1302 LoRa Gateway Shield** - 8-channel simultaneous reception
-- **CrowPanel 7" Advance Display** (800×480 touchscreen)
+- **LILYGO T-ETH Elite ESP32-S3** - Main gateway controller (ESP32-S3, NOT Raspberry Pi!)
+- **T-SX1302 LoRa Gateway Shield** - 8-channel simultaneous reception
+- **CrowPanel 7" Advance Display** (800×480 touchscreen, ESP32-S3)
 - **5V 3A Power Supply** - Powers gateway + display
-- **Ethernet Cable** - For network connectivity
+- **Ethernet Cable** - For network connectivity (optional, not yet implemented)
 - **Antenna** - Magnetic mount on elevator car roof
 - **Coax Cable** - Connects gateway to car-mounted antenna
+
+### Testing Equipment (Optional)
+- **LILYGO T-Beam** - ESP32-S3 with SX1262 LoRa for simulating floor nodes
 
 ## 📦 Project Structure
 
@@ -123,7 +139,25 @@ The tool will generate custom `platformio.ini` configurations.
 
 ### 4. Build and Upload
 
-#### Floor Nodes
+**⚠️ Important**: Only connect ONE device at a time to avoid uploading to the wrong board!
+
+#### Gateway (T-ETH Elite + T-SX1302)
+
+```bash
+cd elevator-gateway-firmware
+pio run --target upload --upload-port /dev/ttyACM0
+```
+
+Disconnect the gateway before connecting the next device.
+
+#### Display (CrowPanel)
+
+```bash
+cd crowpanel-display
+pio run --target upload --upload-port /dev/ttyACM0
+```
+
+#### Floor Nodes (Adafruit Feather RP2040)
 
 For each floor node, update `FLOOR_NUMBER` in `platformio.ini`:
 
@@ -133,24 +167,21 @@ cd floor-node-firmware
 # Edit platformio.ini and set:
 # -D FLOOR_NUMBER=15  (change for each floor!)
 
-pio run --target upload
+pio run -e adafruit_feather_rp2040 --target upload --upload-port /dev/ttyACM0
 ```
 
 Repeat for all 30-40 floor nodes, changing the floor number each time.
 
-#### Gateway
+#### T-Beam Simulator (Optional Testing)
+
+If you have a LILYGO T-Beam for testing:
 
 ```bash
-cd elevator-gateway-firmware
-pio run --target upload
+cd floor-node-firmware
+pio run -e tbeam-supreme-simulator --target upload --upload-port /dev/ttyACM0
 ```
 
-#### Display
-
-```bash
-cd crowpanel-display
-pio run --target upload
-```
+This simulates random floor calls for testing the gateway and display.
 
 ### 5. Test the System
 
@@ -327,19 +358,38 @@ Expected range: ±15 floors direct, all floors with good shaft propagation
 ### Testing Procedure
 
 1. **Start with simulator**: Open `elevator_simulator.html` to understand system
-2. **Gateway first**: Power on gateway, verify web interface
-3. **One floor node**: Power on a single floor node
-4. **Press button**: Should see LED light and call on display
-5. **Check RSSI**: Should be -50 to -80 dBm for good signal
-6. **Auto-clear test**: Simulate elevator arrival
-7. **Add more nodes**: Power on additional floor nodes one by one
+2. **Gateway first**: Power on gateway, verify it initializes (serial output)
+3. **Optional - T-Beam simulator**: Test with simulated floor calls
+4. **One floor node**: Power on a single floor node
+5. **Press button**: Should see LED light and call on display
+6. **Check RSSI**: Should be -50 to -80 dBm for good signal
+7. **Auto-clear test**: Simulate elevator arrival
+8. **Add more nodes**: Power on additional floor nodes one by one
 
 ### Common Issues
 
+**"UnknownPlatform: Unknown development platform 'raspberrypi.git'" error:**
+- You're in the `floor-node-firmware` directory
+- PlatformIO reads `platformio.ini` even for `pio device monitor`
+- **Solution**: Change directory or use `screen /dev/ttyACM0 115200`
+
+**Wrong firmware uploaded to device:**
+- T-Beam shows "SX1302 initialization FAILED!" = gateway firmware was uploaded (wrong!)
+- T-ETH Elite shows "SX1262 initialization failed" = simulator firmware was uploaded (wrong!)
+- **Solution**: See HARDWARE_NOTES.md for correct upload procedures
+
+**Device identification confusion:**
+| If you see... | Device is... | Correct firmware... |
+|---------------|--------------|---------------------|
+| SX1302 initialization | T-ETH Elite Gateway | `elevator-gateway-firmware/` |
+| SX1262 initialization | T-Beam | `floor-node-firmware/` (simulator env) |
+| LVGL initialization | CrowPanel Display | `crowpanel-display/` |
+| RFM95 initialization | Feather RP2040 | `floor-node-firmware/` (main env) |
+
 **Floor node won't connect:**
 - Check batteries (need 6V+ minimum)
-- Verify LoRa frequency matches gateway
-- Check antenna connection
+- Verify LoRa frequency matches gateway (915 MHz vs 868 MHz)
+- Check antenna connection (never TX without antenna!)
 - Move closer to gateway for testing
 
 **No auto-clear:**
@@ -357,6 +407,12 @@ Expected range: ±15 floors direct, all floors with good shaft propagation
 - Check I2C connections (SDA, SCL, GND, 5V)
 - Verify I2C address (0x08 default)
 - Check gateway firmware serial output
+
+**T-Beam simulator not working:**
+- Check pin definitions match your T-Beam version
+- Verify frequency matches gateway (915.0 MHz)
+- Ensure antenna is connected
+- Use `screen /dev/ttyACM0 115200` to monitor output
 
 ## 🔐 Safety & Regulations
 

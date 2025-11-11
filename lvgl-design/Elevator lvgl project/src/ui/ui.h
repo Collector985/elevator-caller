@@ -3,6 +3,10 @@
 
 #include <lvgl/lvgl.h>
 
+#if !defined(EEZ_FOR_LVGL)
+#warning "EEZ_FOR_LVGL is not enabled"
+#define EEZ_FOR_LVGL
+#endif
 
 
 #if defined(EEZ_FOR_LVGL)
@@ -17,7 +21,7 @@
 extern "C" {
 #endif
 
-
+extern const uint8_t assets[18564];
 
 void ui_init();
 void ui_tick();

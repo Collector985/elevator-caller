@@ -2,9 +2,14 @@
 
 ## Hardware You Have
 
-✅ **Adafruit Feather RP2040** (floor nodes)
-✅ **LILYGO T-ETH Elite + SX1302 Gateway** (central receiver)
-✅ **CrowPanel 7" Display** (operator interface)
+✅ **Adafruit Feather RP2040** (floor nodes) - Raspberry Pi RP2040 chip
+✅ **LILYGO T-ETH Elite + T-SX1302 Gateway** (central receiver) - ESP32-S3, NOT Raspberry Pi!
+✅ **CrowPanel 7" Display** (operator interface) - ESP32-S3
+✅ **LILYGO T-Beam** (optional testing simulator) - ESP32-S3
+
+### ⚠️ Platform Clarification
+
+**Only the floor nodes use Raspberry Pi silicon (RP2040)**. The gateway, display, and T-Beam all use ESP32-S3!
 
 ## Configuration - P3, P2, P1, Ground, Floors 1-25 (29 Total)
 
@@ -19,19 +24,38 @@ Your system supports:
 
 ### 1. Upload Firmware (One Time Per Device)
 
+**⚠️ CRITICAL**: Connect only ONE device at a time to avoid uploading wrong firmware!
+
 ```bash
-# Floor nodes - Upload to ALL Feather boards (same firmware for all!)
-cd floor-node-firmware
-pio run --target upload
+# Gateway - Upload to T-ETH Elite (connect gateway first)
+cd elevator-gateway-firmware
+pio run --target upload --upload-port /dev/ttyACM0
+# Disconnect gateway before next step!
 
-# Gateway - Upload to T-ETH Elite
-cd ../elevator-gateway-firmware
-pio run --target upload
-
-# Display - Upload to CrowPanel
+# Display - Upload to CrowPanel (connect display)
 cd ../crowpanel-display
-pio run --target upload
+pio run --target upload --upload-port /dev/ttyACM0
+# Disconnect display before next step!
+
+# Floor nodes - Upload to ALL Feather RP2040 boards (connect one at a time)
+cd ../floor-node-firmware
+pio run -e adafruit_feather_rp2040 --target upload --upload-port /dev/ttyACM0
+# Repeat for each floor node
+
+# T-Beam Simulator (optional, for testing without floor nodes)
+cd floor-node-firmware
+pio run -e tbeam-supreme-simulator --target upload --upload-port /dev/ttyACM0
 ```
+
+### Common Upload Mistakes
+
+**If T-Beam shows "SX1302 initialization FAILED!":**
+- You uploaded gateway firmware to the T-Beam (wrong!)
+- Re-upload with: `pio run -e tbeam-supreme-simulator --target upload`
+
+**If T-ETH Elite shows "SX1262 initialization failed":**
+- You uploaded T-Beam simulator firmware to the gateway (wrong!)
+- Re-upload from `elevator-gateway-firmware/` directory
 
 ###2. Configure Floor Nodes (Easy Method - No Recompiling!)
 
@@ -104,6 +128,36 @@ All config is in `platformio.ini` files - you can change:
 
 ## Troubleshooting
 
+### "UnknownPlatform" error when using pio device monitor
+```
+UnknownPlatform: Unknown development platform 'https://github.com/maxgerhardt/platform-raspberrypi.git'
+```
+
+**Cause**: You're in the `floor-node-firmware` directory, which uses the RP2040 platform.
+
+**Solution**: Use one of these methods:
+```bash
+# Method 1: Use screen (works from any directory)
+screen /dev/ttyACM0 115200
+# Exit: Ctrl+A, then K, then Y
+
+# Method 2: Change to a different project directory
+cd ../elevator-gateway-firmware
+pio device monitor --port /dev/ttyACM0 --baud 115200
+
+# Method 3: Install the RP2040 platform (if you need it)
+cd floor-node-firmware
+pio platform install https://github.com/maxgerhardt/platform-raspberrypi.git
+```
+
+### Wrong firmware uploaded (device identification)
+
+| What You See | Device Connected | Fix |
+|--------------|------------------|-----|
+| "SX1302 initialization FAILED!" | T-Beam | Re-upload from `floor-node-firmware/` with `-e tbeam-supreme-simulator` |
+| "SX1262 initialization failed" | T-ETH Elite | Re-upload from `elevator-gateway-firmware/` |
+| Device doesn't boot | Wrong firmware | Check serial output to identify device |
+
 ### Floor node won't enter pairing mode
 - Hold all 3 buttons BEFORE powering on
 - Keep holding for 2-3 seconds after power on
@@ -124,6 +178,12 @@ All config is in `platformio.ini` files - you can change:
 - Verify elevator position broadcasts working
 - Make sure floor node is receiving position updates
 - Try moving antenna to elevator car roof
+
+### T-Beam simulator not sending packets
+- Check pin definitions in `simulator.cpp` match your T-Beam version
+- Verify antenna is connected (never TX without antenna!)
+- Use `screen /dev/ttyACM0 115200` to check serial output
+- Ensure frequency matches gateway (915.0 MHz)
 
 ## Web Interface
 

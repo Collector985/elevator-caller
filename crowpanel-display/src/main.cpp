@@ -67,6 +67,7 @@ static bool probeGateway();
 static void requestDataFromGateway();
 static void sendClearCommand(uint8_t floor, uint8_t callTypeMask);
 static void handleSerialCommands();
+static void handleUICall(uint8_t floor, ElevatorCallType type, bool active);
 
 void setup() {
   Serial.begin(115200);
@@ -140,6 +141,16 @@ void setup() {
   ui_theme_init();
 
   elevator_ui_init();
+
+  // Register call handler to process UI button clicks
+  elevator_ui_set_call_handler(handleUICall);
+
+  Serial.println("===========================================");
+  Serial.println("Serial Commands:");
+  Serial.println("  'c' or 'C' - Clear all floor states");
+  Serial.println("  't' or 'T' - Test random calls (5 calls)");
+  Serial.println("  'l' or 'L' - Log ping message");
+  Serial.println("===========================================");
 
   uint32_t now = millis();
   lastGatewayProbe = now;
@@ -386,6 +397,11 @@ static void handleSerialCommands() {
           elevator_ui_apply_floor_state(f, false, false, false, true);
         }
         elevator_ui_log_message("Serial: Cleared all floor states");
+        break;
+      case 't':
+      case 'T':
+        elevator_ui_log_message("Serial: Testing random calls...");
+        elevator_ui_test_random_calls(5);
         break;
       case 'l':
       case 'L':

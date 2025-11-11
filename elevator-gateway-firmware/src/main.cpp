@@ -1,36 +1,35 @@
 /**
- * Elevator Gateway System
- * Hardware: LILYGO T-ETH Elite + SX1302 Gateway Shield + CrowPanel 7" Display
+ * Elevator Gateway System - T-ETH Elite + T-SX1302
+ *
+ * Hardware: LILYGO T-ETH Elite ESP32-S3 + T-SX1302 Gateway Shield
  *
  * Features:
- * - SX1302 8-channel simultaneous LoRa reception
- * - RSSI-based proximity auto-clear
+ * - SX1302 8-channel LoRa reception
  * - I2C communication to CrowPanel display
- * - Ethernet connectivity + web interface
- * - 40-floor support
+ * - Ethernet web interface
+ * - RSSI-based auto-clear
  */
 
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <Ethernet.h>
-#include <WebServer.h>
+// #include <Ethernet.h>  // TODO: Add W5500 Ethernet support
+// #include <WebServer.h>
 #include <ArduinoJson.h>
-#include <RadioLib.h>
-#include <queue>
+#include "utilities.h"
+#include "loragw_reg.h"
+#include "loragw_hal.h"
+#include "loragw_spi.h"
 
-// ============= PIN DEFINITIONS =============
-// SX1302 pins
-#define SX1302_NSS 5
-#define SX1302_RESET 14
-#define SX1302_BUSY 13
-#define SX1302_DIO1 12
+// ============= DEFINITIONS =============
+#define LGW_TOTALREGS                           1044
+#define SX1302_REG_COMMON_CTRL0_CLK32_RIF_CTRL  1
+#define LGW_REG_SUCCESS                         0
+#define LGW_REG_ERROR                           -1
 
-// I2C pins for CrowPanel
-#define I2C_SDA 21
-#define I2C_SCL 22
+extern const struct lgw_reg_s loregs[LGW_TOTALREGS + 1];
 
-// ============= PROTOCOL =============
+// Protocol commands
 enum Commands {
   CMD_CALL_UP = 0x01,
   CMD_CALL_DOWN = 0x02,
@@ -42,14 +41,7 @@ enum Commands {
   CMD_PING = 0x40
 };
 
-enum CallDirection {
-  DIR_NONE = 0,
-  DIR_UP = 1,
-  DIR_DOWN = 2,
-  DIR_LOAD = 3
-};
-
-// ============= DATA STRUCTURES =============
+// Floor state tracking
 struct FloorCall {
   bool upActive = false;
   bool downActive = false;
@@ -59,84 +51,38 @@ struct FloorCall {
   uint32_t loadTime = 0;
   int8_t lastRSSI = -120;
   uint32_t lastHeard = 0;
-  bool acknowledged = false;
-};
-
-struct LoRaPacket {
-  uint8_t floor;
-  uint8_t command;
-  uint8_t data;
-  uint8_t messageId;
-  int8_t rssi;
-  float snr;
-  uint8_t sf;
-  uint32_t frequency;
-  uint32_t timestamp;
 };
 
 struct DisplayPacket {
   uint8_t floor;
-  uint8_t status;  // Bit field: UP|DOWN|LOAD|ACK
+  uint8_t status;  // Bit0:UP Bit1:DOWN Bit2:LOAD Bit7:ELEV_POS
   int8_t rssi;
 };
 
 // ============= GLOBALS =============
-SX1302 gateway = new Module(SX1302_NSS, SX1302_DIO1, SX1302_RESET, SX1302_BUSY);
-FloorCall floorCalls[TOTAL_FLOORS + 1];  // Index 0 unused, 1-40 for floors
-std::queue<LoRaPacket> packetQueue;
-std::queue<DisplayPacket> displayQueue;
-
-uint8_t currentFloor = 20;  // Elevator's current position
-uint8_t targetFloor = 20;
-bool isMoving = false;
-uint32_t lastBroadcast = 0;
+FloorCall floorCalls[TOTAL_FLOORS + 1];  // Index 0 unused, 1-TOTAL_FLOORS
+uint8_t currentElevatorFloor = 1;
 uint32_t lastDisplayUpdate = 0;
-
-// RSSI-based proximity tracking
-int8_t floorRSSI[TOTAL_FLOORS + 1];
-bool floorProximity[TOTAL_FLOORS + 1];
-uint32_t proximityClearTime[TOTAL_FLOORS + 1];
-
-// Statistics
 uint32_t totalPacketsReceived = 0;
-uint32_t totalCallsReceived = 0;
-uint32_t totalCallsCleared = 0;
-uint32_t autoClearedCount = 0;
 
-// Ethernet & Web Server
-byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-IPAddress ip(192, 168, 1, 100);
-WebServer webServer(80);
+// Ethernet & Web Server (TODO: Enable when W5500 library is added)
+// byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+// IPAddress ip(192, 168, 1, 100);
+// WebServer webServer(80);
 
-// Function prototypes
+// ============= FUNCTION PROTOTYPES =============
 bool initializeSX1302();
+void handleSerialCommands();
 void handleLoRaReception();
-void processPacketQueue();
-void handleCallRequest(uint8_t floor, uint8_t direction, uint8_t messageId, int8_t rssi);
-void handlePing(uint8_t floor, uint8_t status, int8_t rssi);
+void processLoRaPacket(struct lgw_pkt_rx_s* pkt);
 void sendAcknowledgment(uint8_t floor, uint8_t command, uint8_t messageId);
-void sendClearCommand(uint8_t floor, uint8_t callType);
 void checkProximityAndAutoClear();
-void autoClearFloor(uint8_t floor);
-void manualClearFloor(uint8_t floor, uint8_t callType);
-void broadcastElevatorPosition();
-void simulateElevatorMovement();
-bool hasCallsAbove(uint8_t floor);
-bool hasCallsBelow(uint8_t floor);
 void handleDisplayRequest();
 void handleDisplayCommand(int numBytes);
-void queueDisplayUpdate(uint8_t floor);
-void updateDisplayData();
-void initializeEthernet();
-void setupWebServer();
-void handleWebRoot();
-void handleWebStatus();
-void handleWebFloors();
-void handleWebClear();
-void handleWebStats();
-void initializeFloorData();
-uint8_t calculateChecksum(uint8_t* data, uint8_t len);
-void logPacket(LoRaPacket &pkt);
+// void setupWebServer();  // TODO: Enable W5500 support
+// void handleWebRoot();
+// void handleWebStatus();
+void logMessage(const char* msg);
 
 // ============= SETUP =============
 void setup() {
@@ -145,616 +91,402 @@ void setup() {
 
   Serial.println(F("========================================"));
   Serial.println(F("Elevator Gateway System v2.0"));
-  Serial.println(F("T-ETH Elite + SX1302 + CrowPanel"));
+  Serial.println(F("T-ETH Elite + T-SX1302"));
   Serial.println(F("========================================"));
 
+  // Initialize LED
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+
   // Initialize I2C for display communication
-  Wire.begin(I2C_SLAVE_ADDRESS, I2C_SDA, I2C_SCL);
+  Wire.begin(I2C_SLAVE_ADDRESS, I2C_SDA_PIN, I2C_SCL_PIN);
   Wire.onRequest(handleDisplayRequest);
   Wire.onReceive(handleDisplayCommand);
+  Serial.printf("I2C slave initialized at address 0x%02X\n", I2C_SLAVE_ADDRESS);
 
-  // Initialize Ethernet
-  initializeEthernet();
+  // Initialize Ethernet (TODO: Enable W5500 support)
+  // Serial.print(F("Initializing Ethernet..."));
+  // Ethernet.init(ETH_CS_PIN);
+  // Ethernet.begin(mac, ip);
+  // delay(1000);
+  // Serial.print(F(" IP: "));
+  // Serial.println(Ethernet.localIP());
 
-  // Initialize SX1302 Gateway
+  // Initialize SX1302
   if (!initializeSX1302()) {
     Serial.println(F("SX1302 initialization FAILED!"));
-    while (true) { delay(1000); }
+    while (true) {
+      digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+      delay(500);
+    }
   }
 
-  // Initialize data structures
-  initializeFloorData();
-
-  // Setup web server endpoints
-  setupWebServer();
+  // Setup web server (TODO: Enable W5500 support)
+  // setupWebServer();
 
   Serial.println(F("Gateway Ready!"));
-  Serial.print(F("IP Address: "));
-  Serial.println(Ethernet.localIP());
-  Serial.print(F("Total Floors: "));
-  Serial.println(TOTAL_FLOORS);
+  Serial.printf("Total Floors: %d\n", TOTAL_FLOORS);
+  Serial.printf("Auto-clear RSSI: %d dBm\n", AUTO_CLEAR_RSSI);
+  Serial.println(F("\nType 'H' for serial commands help\n"));
+
+  digitalWrite(LED_PIN, HIGH);
 }
 
 // ============= MAIN LOOP =============
 void loop() {
-  // Check for LoRa packets
+  // Handle serial commands for testing
+  handleSerialCommands();
+
+  // Handle LoRa packet reception
   handleLoRaReception();
 
-  // Process packet queue
-  processPacketQueue();
-
-  // Broadcast elevator position
-  if (millis() - lastBroadcast > ELEVATOR_BROADCAST_INTERVAL) {
-    broadcastElevatorPosition();
-    lastBroadcast = millis();
+  // Check for proximity-based auto-clear (every 100ms)
+  static uint32_t lastProximityCheck = 0;
+  if (millis() - lastProximityCheck > 100) {
+    checkProximityAndAutoClear();
+    lastProximityCheck = millis();
   }
 
-  // Check proximity and auto-clear
-  checkProximityAndAutoClear();
+  // Handle web server requests (TODO: Enable W5500 support)
+  // webServer.handleClient();
 
-  // Handle web server
-  webServer.handleClient();
+  // Blink LED to show we're alive
+  static uint32_t lastBlink = 0;
+  if (millis() - lastBlink > 1000) {
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+    lastBlink = millis();
+  }
 
-  // Update display via I2C
-  updateDisplayData();
+  delay(5);  // Small delay to prevent watchdog issues
+}
 
-  // Simulate elevator movement (for testing)
-  simulateElevatorMovement();
+void handleSerialCommands() {
+  if (Serial.available()) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+
+    if (cmd.startsWith("U")) {
+      // Simulate UP call: U5 = Floor 5 UP
+      int floor = cmd.substring(1).toInt();
+      if (floor >= 1 && floor <= TOTAL_FLOORS) {
+        floorCalls[floor].upActive = true;
+        Serial.printf("Simulated: Floor %d UP\n", floor);
+      }
+    } else if (cmd.startsWith("D")) {
+      // Simulate DOWN call: D5 = Floor 5 DOWN
+      int floor = cmd.substring(1).toInt();
+      if (floor >= 1 && floor <= TOTAL_FLOORS) {
+        floorCalls[floor].downActive = true;
+        Serial.printf("Simulated: Floor %d DOWN\n", floor);
+      }
+    } else if (cmd.startsWith("L")) {
+      // Simulate LOAD call: L5 = Floor 5 LOAD
+      int floor = cmd.substring(1).toInt();
+      if (floor >= 1 && floor <= TOTAL_FLOORS) {
+        floorCalls[floor].loadActive = true;
+        Serial.printf("Simulated: Floor %d LOAD\n", floor);
+      }
+    } else if (cmd.startsWith("C")) {
+      // Clear floor: C5 = Clear Floor 5
+      int floor = cmd.substring(1).toInt();
+      if (floor >= 1 && floor <= TOTAL_FLOORS) {
+        floorCalls[floor].upActive = false;
+        floorCalls[floor].downActive = false;
+        floorCalls[floor].loadActive = false;
+        Serial.printf("Cleared: Floor %d\n", floor);
+      }
+    } else if (cmd == "S") {
+      // Show status
+      Serial.println("\n=== Gateway Status ===");
+      Serial.printf("Total packets: %u\n", totalPacketsReceived);
+      Serial.printf("Elevator floor: %u\n", currentElevatorFloor);
+      Serial.println("\nActive calls:");
+      for (uint8_t i = 1; i <= TOTAL_FLOORS; i++) {
+        if (floorCalls[i].upActive || floorCalls[i].downActive || floorCalls[i].loadActive) {
+          Serial.printf("  Floor %u: ", i);
+          if (floorCalls[i].upActive) Serial.print("UP ");
+          if (floorCalls[i].downActive) Serial.print("DOWN ");
+          if (floorCalls[i].loadActive) Serial.print("LOAD ");
+          Serial.printf("(RSSI: %d dBm)\n", floorCalls[i].lastRSSI);
+        }
+      }
+    } else if (cmd == "H") {
+      // Help
+      Serial.println("\n=== Serial Commands ===");
+      Serial.println("U<floor> - Simulate UP call (e.g., U5)");
+      Serial.println("D<floor> - Simulate DOWN call (e.g., D10)");
+      Serial.println("L<floor> - Simulate LOAD call (e.g., L15)");
+      Serial.println("C<floor> - Clear floor (e.g., C5)");
+      Serial.println("S - Show status");
+      Serial.println("H - Show this help");
+    }
+  }
 }
 
 // ============= SX1302 FUNCTIONS =============
 bool initializeSX1302() {
   Serial.print(F("Initializing SX1302..."));
 
-  int state = gateway.begin(
-    GATEWAY_FREQUENCY,
-    125.0,  // Bandwidth in kHz
-    7,      // Spreading factor (will listen to SF7-SF12)
-    5,      // Coding rate
-    0x12,   // Sync word
-    10,     // Output power in dBm
-    8,      // Preamble length
-    0       // TCXO voltage
-  );
-
-  if (state != RADIOLIB_ERR_NONE) {
-    Serial.print(F("Failed, code "));
-    Serial.println(state);
+  // Connect to SX1302
+  if (lgw_connect("") != LGW_REG_SUCCESS) {
+    Serial.println(F(" FAILED to connect!"));
     return false;
   }
 
-  // Configure for 8-channel reception
-  gateway.setFrequencyDeviation(25.0);
+  Serial.println(F(" Connected!"));
 
-  // Set up for continuous reception
-  gateway.startReceive();
+  // Test register access
+  Serial.print(F("Testing SX1302 registers..."));
+  int32_t val;
+  int x = lgw_reg_r(0, &val);
+  if (x != LGW_REG_SUCCESS) {
+    Serial.println(F(" FAILED!"));
+    return false;
+  }
+  Serial.println(F(" OK!"));
 
-  Serial.println(F("Success!"));
+  // Start the concentrator
+  Serial.print(F("Starting SX1302..."));
+  if (lgw_start() != LGW_HAL_SUCCESS) {
+    Serial.println(F(" FAILED!"));
+    return false;
+  }
+  Serial.println(F(" Started!"));
+
   return true;
 }
 
 void handleLoRaReception() {
-  if (gateway.available()) {
-    uint8_t data[255];
-    int packetSize = gateway.getPacketLength();
+  const uint8_t MAX_PACKETS = 8;
+  struct lgw_pkt_rx_s rxpkt[MAX_PACKETS];
 
-    if (packetSize > 0 && packetSize < 255) {
-      int state = gateway.readData(data, packetSize);
+  int nb_pkt = lgw_receive(MAX_PACKETS, rxpkt);
 
-      if (state == RADIOLIB_ERR_NONE) {
-        LoRaPacket pkt;
-        pkt.floor = data[0];
-        pkt.command = data[1];
-        pkt.data = data[2];
-        pkt.messageId = data[3];
-        pkt.rssi = gateway.getRSSI();
-        pkt.snr = gateway.getSNR();
-        pkt.sf = gateway.getSpreadingFactor();
-        pkt.frequency = gateway.getFrequency();
-        pkt.timestamp = millis();
-
-        packetQueue.push(pkt);
+  if (nb_pkt > 0) {
+    for (int i = 0; i < nb_pkt; i++) {
+      // Process each received packet
+      if (rxpkt[i].status == STAT_CRC_OK && rxpkt[i].size >= 4) {
+        processLoRaPacket(&rxpkt[i]);
         totalPacketsReceived++;
-        logPacket(pkt);
       }
-    }
-
-    gateway.startReceive();
-  }
-}
-
-void processPacketQueue() {
-  while (!packetQueue.empty()) {
-    LoRaPacket pkt = packetQueue.front();
-    packetQueue.pop();
-
-    // Validate floor number
-    if (pkt.floor < 1 || pkt.floor > TOTAL_FLOORS) {
-      continue;
-    }
-
-    // Update RSSI tracking
-    floorRSSI[pkt.floor] = pkt.rssi;
-    floorCalls[pkt.floor].lastRSSI = pkt.rssi;
-    floorCalls[pkt.floor].lastHeard = millis();
-
-    // Process command
-    switch (pkt.command) {
-      case CMD_CALL_UP:
-        handleCallRequest(pkt.floor, DIR_UP, pkt.messageId, pkt.rssi);
-        break;
-
-      case CMD_CALL_DOWN:
-        handleCallRequest(pkt.floor, DIR_DOWN, pkt.messageId, pkt.rssi);
-        break;
-
-      case CMD_CALL_LOAD:
-        handleCallRequest(pkt.floor, DIR_LOAD, pkt.messageId, pkt.rssi);
-        break;
-
-      case CMD_PING:
-        handlePing(pkt.floor, pkt.data, pkt.rssi);
-        break;
-
-      default:
-        break;
     }
   }
 }
 
-void handleCallRequest(uint8_t floor, uint8_t direction, uint8_t messageId, int8_t rssi) {
-  Serial.print(F("Call from floor "));
-  Serial.print(floor);
-  Serial.print(F(" Dir: "));
-  Serial.print(direction);
-  Serial.print(F(" RSSI: "));
-  Serial.println(rssi);
+void processLoRaPacket(struct lgw_pkt_rx_s* pkt) {
+  // Extract packet data
+  uint8_t floor = pkt->payload[0];
+  uint8_t command = pkt->payload[1];
+  uint8_t data = pkt->payload[2];
+  uint8_t messageId = pkt->payload[3];
+  int8_t rssi = (int8_t)pkt->rssis;  // Signal RSSI
 
-  totalCallsReceived++;
-
-  // Update floor call status
-  switch (direction) {
-    case DIR_UP:
-      if (!floorCalls[floor].upActive) {
-        floorCalls[floor].upActive = true;
-        floorCalls[floor].upTime = millis();
-      }
-      break;
-
-    case DIR_DOWN:
-      if (!floorCalls[floor].downActive) {
-        floorCalls[floor].downActive = true;
-        floorCalls[floor].downTime = millis();
-      }
-      break;
-
-    case DIR_LOAD:
-      if (!floorCalls[floor].loadActive) {
-        floorCalls[floor].loadActive = true;
-        floorCalls[floor].loadTime = millis();
-      }
-      break;
+  // Validate floor number
+  if (floor < 1 || floor > TOTAL_FLOORS) {
+    Serial.printf("Invalid floor: %u\n", floor);
+    return;
   }
 
-  // Send acknowledgment
-  sendAcknowledgment(floor, direction, messageId);
+  // Update RSSI tracking
+  floorCalls[floor].lastRSSI = rssi;
+  floorCalls[floor].lastHeard = millis();
 
-  // Update display
-  queueDisplayUpdate(floor);
-}
+  // Process command
+  switch (command) {
+    case CMD_CALL_UP:
+      floorCalls[floor].upActive = true;
+      floorCalls[floor].upTime = millis();
+      Serial.printf("Floor %u: UP call (RSSI: %d dBm)\n", floor, rssi);
+      sendAcknowledgment(floor, CMD_ACK, messageId);
+      break;
 
-void handlePing(uint8_t floor, uint8_t status, int8_t rssi) {
-  // Ping contains status bits for active calls
-  if (status & 0x01) floorCalls[floor].upActive = true;
-  if (status & 0x02) floorCalls[floor].downActive = true;
-  if (status & 0x04) floorCalls[floor].loadActive = true;
+    case CMD_CALL_DOWN:
+      floorCalls[floor].downActive = true;
+      floorCalls[floor].downTime = millis();
+      Serial.printf("Floor %u: DOWN call (RSSI: %d dBm)\n", floor, rssi);
+      sendAcknowledgment(floor, CMD_ACK, messageId);
+      break;
 
-  // Check for proximity-based auto-clear
-  if (rssi > AUTO_CLEAR_RSSI && abs(currentFloor - floor) <= 1) {
-    autoClearFloor(floor);
+    case CMD_CALL_LOAD:
+      floorCalls[floor].loadActive = true;
+      floorCalls[floor].loadTime = millis();
+      Serial.printf("Floor %u: LOAD call (RSSI: %d dBm)\n", floor, rssi);
+      sendAcknowledgment(floor, CMD_ACK, messageId);
+      break;
+
+    case CMD_PING:
+      // Heartbeat from floor node
+      Serial.printf("Floor %u: PING (RSSI: %d dBm)\n", floor, rssi);
+      break;
+
+    default:
+      Serial.printf("Floor %u: Unknown command 0x%02X\n", floor, command);
+      break;
   }
 }
 
 void sendAcknowledgment(uint8_t floor, uint8_t command, uint8_t messageId) {
-  uint8_t packet[5];
-  packet[0] = floor;
-  packet[1] = CMD_ACK;
-  packet[2] = command;
-  packet[3] = messageId;
-  packet[4] = calculateChecksum(packet, 4);
+  struct lgw_pkt_tx_s txpkt;
+  memset(&txpkt, 0, sizeof(txpkt));
 
-  gateway.transmit(packet, sizeof(packet));
+  // Configure TX packet
+  txpkt.freq_hz = GATEWAY_FREQUENCY * 1000000;  // Convert MHz to Hz
+  txpkt.tx_mode = IMMEDIATE;
+  txpkt.rf_chain = 0;
+  txpkt.rf_power = 14;  // 14 dBm
+  txpkt.modulation = MOD_LORA;
+  txpkt.bandwidth = BW_125KHZ;
+  txpkt.datarate = DR_LORA_SF7;
+  txpkt.coderate = CR_LORA_4_5;
+  txpkt.invert_pol = true;
+  txpkt.preamble = 8;
+  txpkt.no_crc = false;
+  txpkt.no_header = false;
 
-  Serial.print(F("ACK sent to floor "));
-  Serial.println(floor);
+  // Build packet payload
+  txpkt.payload[0] = floor;
+  txpkt.payload[1] = command;
+  txpkt.payload[2] = 0;
+  txpkt.payload[3] = messageId;
+  txpkt.size = 4;
+
+  // Send packet
+  int ret = lgw_send(&txpkt);
+  if (ret == LGW_HAL_SUCCESS) {
+    Serial.printf("ACK sent to floor %u\n", floor);
+  } else {
+    Serial.printf("ACK send failed: %d\n", ret);
+  }
 }
 
-void sendClearCommand(uint8_t floor, uint8_t callType) {
-  uint8_t packet[4];
-  packet[0] = floor;
-  packet[1] = CMD_CLEAR;
-  packet[2] = callType;
-  packet[3] = calculateChecksum(packet, 3);
-
-  gateway.transmit(packet, sizeof(packet));
-
-  Serial.print(F("Clear sent to floor "));
-  Serial.print(floor);
-  Serial.print(F(" Type: "));
-  Serial.println(callType);
-}
-
-// ============= PROXIMITY & AUTO-CLEAR =============
 void checkProximityAndAutoClear() {
+  // Check each floor for proximity-based auto-clear
   for (uint8_t floor = 1; floor <= TOTAL_FLOORS; floor++) {
-    // Skip if no recent data
-    if (millis() - floorCalls[floor].lastHeard > 10000) {
-      continue;
-    }
-
-    int8_t rssi = floorCalls[floor].lastRSSI;
-
-    // Check if elevator is at or very near this floor
-    if (abs(currentFloor - floor) <= 1) {
-      if (rssi > AUTO_CLEAR_RSSI) {
-        // Very strong signal and we're at the floor
-        if (!floorProximity[floor]) {
-          // Just arrived at floor
-          floorProximity[floor] = true;
-          proximityClearTime[floor] = millis() + 2000;  // Wait 2 seconds
-        } else if (millis() > proximityClearTime[floor]) {
-          // Been at floor for 2+ seconds, auto-clear
-          autoClearFloor(floor);
+    if (floorCalls[floor].upActive || floorCalls[floor].downActive || floorCalls[floor].loadActive) {
+      // Check if RSSI indicates elevator is at this floor
+      if (floorCalls[floor].lastRSSI > AUTO_CLEAR_RSSI) {
+        // Strong signal = elevator is nearby, auto-clear
+        if (floorCalls[floor].upActive) {
+          floorCalls[floor].upActive = false;
+          Serial.printf("Auto-cleared Floor %u UP (RSSI: %d dBm)\n", floor, floorCalls[floor].lastRSSI);
+        }
+        if (floorCalls[floor].downActive) {
+          floorCalls[floor].downActive = false;
+          Serial.printf("Auto-cleared Floor %u DOWN (RSSI: %d dBm)\n", floor, floorCalls[floor].lastRSSI);
+        }
+        if (floorCalls[floor].loadActive) {
+          floorCalls[floor].loadActive = false;
+          Serial.printf("Auto-cleared Floor %u LOAD (RSSI: %d dBm)\n", floor, floorCalls[floor].lastRSSI);
         }
       }
-    } else {
-      // Not near this floor anymore
-      floorProximity[floor] = false;
     }
   }
 }
 
-void autoClearFloor(uint8_t floor) {
-  bool clearedSomething = false;
-
-  if (floorCalls[floor].upActive) {
-    floorCalls[floor].upActive = false;
-    sendClearCommand(floor, CMD_CALL_UP);
-    clearedSomething = true;
-    totalCallsCleared++;
-  }
-
-  if (floorCalls[floor].downActive) {
-    floorCalls[floor].downActive = false;
-    sendClearCommand(floor, CMD_CALL_DOWN);
-    clearedSomething = true;
-    totalCallsCleared++;
-  }
-
-  if (floorCalls[floor].loadActive) {
-    floorCalls[floor].loadActive = false;
-    sendClearCommand(floor, CMD_CALL_LOAD);
-    clearedSomething = true;
-    totalCallsCleared++;
-  }
-
-  if (clearedSomething) {
-    autoClearedCount++;
-    Serial.print(F("AUTO-CLEARED floor "));
-    Serial.print(floor);
-    Serial.print(F(" (RSSI: "));
-    Serial.print(floorCalls[floor].lastRSSI);
-    Serial.println(F(")"));
-
-    queueDisplayUpdate(floor);
-  }
-}
-
-void manualClearFloor(uint8_t floor, uint8_t callType) {
-  switch (callType) {
-    case DIR_UP:
-      if (floorCalls[floor].upActive) {
-        floorCalls[floor].upActive = false;
-        sendClearCommand(floor, CMD_CALL_UP);
-        totalCallsCleared++;
-      }
-      break;
-
-    case DIR_DOWN:
-      if (floorCalls[floor].downActive) {
-        floorCalls[floor].downActive = false;
-        sendClearCommand(floor, CMD_CALL_DOWN);
-        totalCallsCleared++;
-      }
-      break;
-
-    case DIR_LOAD:
-      if (floorCalls[floor].loadActive) {
-        floorCalls[floor].loadActive = false;
-        sendClearCommand(floor, CMD_CALL_LOAD);
-        totalCallsCleared++;
-      }
-      break;
-
-    case 0xFF:  // Clear all
-      if (floorCalls[floor].upActive) {
-        floorCalls[floor].upActive = false;
-        totalCallsCleared++;
-      }
-      if (floorCalls[floor].downActive) {
-        floorCalls[floor].downActive = false;
-        totalCallsCleared++;
-      }
-      if (floorCalls[floor].loadActive) {
-        floorCalls[floor].loadActive = false;
-        totalCallsCleared++;
-      }
-      sendClearCommand(floor, CMD_CLEAR_ALL);
-      break;
-  }
-
-  queueDisplayUpdate(floor);
-}
-
-// ============= ELEVATOR POSITION =============
-void broadcastElevatorPosition() {
-  uint8_t packet[3];
-  packet[0] = 0xFF;  // Broadcast address
-  packet[1] = CMD_ELEVATOR_POS;
-  packet[2] = currentFloor;
-
-  gateway.transmit(packet, sizeof(packet));
-}
-
-void simulateElevatorMovement() {
-  static uint32_t lastMove = 0;
-  static bool goingUp = true;
-
-  // Move every 3 seconds for simulation
-  if (millis() - lastMove > 3000) {
-    lastMove = millis();
-
-    if (hasCallsAbove(currentFloor) && goingUp) {
-      currentFloor++;
-      if (currentFloor >= TOTAL_FLOORS) goingUp = false;
-    } else if (hasCallsBelow(currentFloor) && !goingUp) {
-      currentFloor--;
-      if (currentFloor <= 1) goingUp = true;
-    } else if (hasCallsAbove(currentFloor)) {
-      goingUp = true;
-      currentFloor++;
-    } else if (hasCallsBelow(currentFloor)) {
-      goingUp = false;
-      currentFloor--;
-    }
-
-    Serial.print(F("Elevator at floor "));
-    Serial.println(currentFloor);
-  }
-}
-
-bool hasCallsAbove(uint8_t floor) {
-  for (uint8_t f = floor + 1; f <= TOTAL_FLOORS; f++) {
-    if (floorCalls[f].upActive || floorCalls[f].downActive || floorCalls[f].loadActive) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool hasCallsBelow(uint8_t floor) {
-  for (uint8_t f = 1; f < floor; f++) {
-    if (floorCalls[f].upActive || floorCalls[f].downActive || floorCalls[f].loadActive) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// ============= I2C DISPLAY COMMUNICATION =============
+// ============= I2C DISPLAY FUNCTIONS =============
 void handleDisplayRequest() {
-  if (!displayQueue.empty()) {
-    DisplayPacket pkt = displayQueue.front();
-    displayQueue.pop();
+  // Find next floor with active calls to send to display
+  static uint8_t lastFloorSent = 0;
 
-    Wire.write((uint8_t*)&pkt, sizeof(DisplayPacket));
-  } else {
-    // Send current elevator position
-    DisplayPacket pkt;
-    pkt.floor = currentFloor;
-    pkt.status = 0x80;  // Special flag for elevator position
-    pkt.rssi = 0;
+  for (uint8_t i = 1; i <= TOTAL_FLOORS; i++) {
+    uint8_t floor = (lastFloorSent + i) % (TOTAL_FLOORS + 1);
+    if (floor == 0) floor = 1;
 
-    Wire.write((uint8_t*)&pkt, sizeof(DisplayPacket));
+    if (floorCalls[floor].upActive || floorCalls[floor].downActive || floorCalls[floor].loadActive) {
+      DisplayPacket pkt;
+      pkt.floor = floor;
+      pkt.status = 0;
+      if (floorCalls[floor].upActive) pkt.status |= 0x01;
+      if (floorCalls[floor].downActive) pkt.status |= 0x02;
+      if (floorCalls[floor].loadActive) pkt.status |= 0x04;
+      pkt.rssi = floorCalls[floor].lastRSSI;
+
+      Wire.write((uint8_t*)&pkt, sizeof(DisplayPacket));
+      lastFloorSent = floor;
+      return;
+    }
   }
+
+  // If no active calls, send elevator position
+  DisplayPacket pkt;
+  pkt.floor = currentElevatorFloor;
+  pkt.status = 0x80;  // Bit7 = elevator position
+  pkt.rssi = 0;
+  Wire.write((uint8_t*)&pkt, sizeof(DisplayPacket));
 }
 
 void handleDisplayCommand(int numBytes) {
-  if (numBytes >= 3) {
-    uint8_t floor = Wire.read();
-    uint8_t command = Wire.read();
-    uint8_t data = Wire.read();
+  if (numBytes != 3) return;
 
-    if (command == CMD_CLEAR) {
-      manualClearFloor(floor, data);
-    }
+  uint8_t floor = Wire.read();
+  uint8_t command = Wire.read();
+  uint8_t callType = Wire.read();
+
+  if (floor < 1 || floor > TOTAL_FLOORS) return;
+
+  // Handle clear command from display
+  if (command == 0x20) {
+    if (callType & 0x01) floorCalls[floor].upActive = false;
+    if (callType & 0x02) floorCalls[floor].downActive = false;
+    if (callType & 0x04) floorCalls[floor].loadActive = false;
+
+    Serial.printf("Display cleared: Floor %u (mask 0x%02X)\n", floor, callType);
   }
 }
 
-void queueDisplayUpdate(uint8_t floor) {
-  DisplayPacket pkt;
-  pkt.floor = floor;
-  pkt.status = 0;
-
-  if (floorCalls[floor].upActive) pkt.status |= 0x01;
-  if (floorCalls[floor].downActive) pkt.status |= 0x02;
-  if (floorCalls[floor].loadActive) pkt.status |= 0x04;
-  if (floorCalls[floor].acknowledged) pkt.status |= 0x08;
-
-  pkt.rssi = floorCalls[floor].lastRSSI;
-
-  displayQueue.push(pkt);
-}
-
-void updateDisplayData() {
-  static uint32_t lastFullUpdate = 0;
-
-  if (millis() - lastFullUpdate > 1000) {
-    lastFullUpdate = millis();
-
-    for (uint8_t floor = 1; floor <= TOTAL_FLOORS; floor++) {
-      if (floorCalls[floor].upActive ||
-          floorCalls[floor].downActive ||
-          floorCalls[floor].loadActive) {
-        queueDisplayUpdate(floor);
-      }
-    }
-  }
-}
-
-// ============= WEB SERVER =============
-void initializeEthernet() {
-  Ethernet.begin(mac, ip);
-
-  Serial.print(F("Ethernet IP: "));
-  Serial.println(Ethernet.localIP());
-}
-
+// ============= WEB SERVER (TODO: Enable W5500 support) =============
+/*
 void setupWebServer() {
   webServer.on("/", handleWebRoot);
   webServer.on("/status", handleWebStatus);
-  webServer.on("/floors", handleWebFloors);
-  webServer.on("/clear", handleWebClear);
-  webServer.on("/stats", handleWebStats);
-
   webServer.begin();
+  Serial.println(F("Web server started"));
 }
 
 void handleWebRoot() {
-  String html = F("<!DOCTYPE html><html><head><title>Elevator Gateway</title>");
-  html += F("<meta http-equiv='refresh' content='5'/>");
-  html += F("<style>body{font-family:Arial;margin:20px;}");
-  html += F(".floor{display:inline-block;width:60px;height:60px;margin:5px;");
-  html += F("border:2px solid #ccc;text-align:center;line-height:60px;}");
-  html += F(".active-up{background:#0f0;}.active-down{background:#f00;}");
-  html += F(".active-load{background:#ff0;}.current{border-color:#00f;border-width:4px;}");
-  html += F("</style></head><body>");
-  html += F("<h1>Elevator Gateway Status</h1>");
-  html += F("<p>Current Floor: <b>");
-  html += currentFloor;
-  html += F("</b></p>");
-  html += F("<div id='floors'>");
+  String html = "<!DOCTYPE html><html><head><title>Elevator Gateway</title></head><body>";
+  html += "<h1>Elevator Gateway System</h1>";
+  html += "<p>Total Packets: " + String(totalPacketsReceived) + "</p>";
+  html += "<p>Elevator Floor: " + String(currentElevatorFloor) + "</p>";
+  html += "<h2>Active Calls:</h2><ul>";
 
-  for (uint8_t f = TOTAL_FLOORS; f >= 1; f--) {
-    html += F("<div class='floor ");
-    if (f == currentFloor) html += F("current ");
-    if (floorCalls[f].upActive) html += F("active-up ");
-    if (floorCalls[f].downActive) html += F("active-down ");
-    if (floorCalls[f].loadActive) html += F("active-load ");
-    html += F("'>");
-    html += f;
-    html += F("</div>");
-    if (f % 8 == 1) html += F("<br>");
+  for (uint8_t i = 1; i <= TOTAL_FLOORS; i++) {
+    if (floorCalls[i].upActive || floorCalls[i].downActive || floorCalls[i].loadActive) {
+      html += "<li>Floor " + String(i) + ": ";
+      if (floorCalls[i].upActive) html += "UP ";
+      if (floorCalls[i].downActive) html += "DOWN ";
+      if (floorCalls[i].loadActive) html += "LOAD ";
+      html += "(RSSI: " + String(floorCalls[i].lastRSSI) + " dBm)</li>";
+    }
   }
-
-  html += F("</div></body></html>");
-
+  html += "</ul></body></html>";
   webServer.send(200, "text/html", html);
 }
 
 void handleWebStatus() {
   StaticJsonDocument<512> doc;
+  doc["total_packets"] = totalPacketsReceived;
+  doc["elevator_floor"] = currentElevatorFloor;
+  doc["total_floors"] = TOTAL_FLOORS;
 
-  doc["currentFloor"] = currentFloor;
-  doc["totalPackets"] = totalPacketsReceived;
-  doc["totalCalls"] = totalCallsReceived;
-  doc["totalCleared"] = totalCallsCleared;
-  doc["autoCleared"] = autoClearedCount;
-  doc["uptime"] = millis() / 1000;
-
-  String response;
-  serializeJson(doc, response);
-
-  webServer.send(200, "application/json", response);
-}
-
-void handleWebFloors() {
-  StaticJsonDocument<2048> doc;
-  JsonArray floors = doc.createNestedArray("floors");
-
-  for (uint8_t f = 1; f <= TOTAL_FLOORS; f++) {
-    if (floorCalls[f].upActive || floorCalls[f].downActive || floorCalls[f].loadActive) {
-      JsonObject floor = floors.createNestedObject();
-      floor["floor"] = f;
-      floor["up"] = floorCalls[f].upActive;
-      floor["down"] = floorCalls[f].downActive;
-      floor["load"] = floorCalls[f].loadActive;
-      floor["rssi"] = floorCalls[f].lastRSSI;
-      floor["lastHeard"] = (millis() - floorCalls[f].lastHeard) / 1000;
+  JsonArray active_calls = doc.createNestedArray("active_calls");
+  for (uint8_t i = 1; i <= TOTAL_FLOORS; i++) {
+    if (floorCalls[i].upActive || floorCalls[i].downActive || floorCalls[i].loadActive) {
+      JsonObject call = active_calls.createNestedObject();
+      call["floor"] = i;
+      call["up"] = floorCalls[i].upActive;
+      call["down"] = floorCalls[i].downActive;
+      call["load"] = floorCalls[i].loadActive;
+      call["rssi"] = floorCalls[i].lastRSSI;
     }
   }
 
   String response;
   serializeJson(doc, response);
-
   webServer.send(200, "application/json", response);
 }
+*/
 
-void handleWebClear() {
-  if (webServer.hasArg("floor") && webServer.hasArg("type")) {
-    uint8_t floor = webServer.arg("floor").toInt();
-    uint8_t type = webServer.arg("type").toInt();
-
-    if (floor >= 1 && floor <= TOTAL_FLOORS) {
-      manualClearFloor(floor, type);
-      webServer.send(200, "text/plain", "OK");
-    } else {
-      webServer.send(400, "text/plain", "Invalid floor");
-    }
-  } else {
-    webServer.send(400, "text/plain", "Missing parameters");
-  }
-}
-
-void handleWebStats() {
-  String json = "{";
-  json += "\"totalPackets\":" + String(totalPacketsReceived) + ",";
-  json += "\"totalCalls\":" + String(totalCallsReceived) + ",";
-  json += "\"totalCleared\":" + String(totalCallsCleared) + ",";
-  json += "\"autoCleared\":" + String(autoClearedCount) + ",";
-  json += "\"uptime\":" + String(millis() / 1000);
-  json += "}";
-
-  webServer.send(200, "application/json", json);
-}
-
-// ============= UTILITY FUNCTIONS =============
-void initializeFloorData() {
-  for (uint8_t f = 0; f <= TOTAL_FLOORS; f++) {
-    floorCalls[f] = FloorCall();
-    floorRSSI[f] = -120;
-    floorProximity[f] = false;
-    proximityClearTime[f] = 0;
-  }
-}
-
-uint8_t calculateChecksum(uint8_t* data, uint8_t len) {
-  uint8_t sum = 0;
-  for (uint8_t i = 0; i < len; i++) {
-    sum ^= data[i];
-  }
-  return sum;
-}
-
-void logPacket(LoRaPacket &pkt) {
-  Serial.print(F("RX: Floor "));
-  Serial.print(pkt.floor);
-  Serial.print(F(" Cmd: 0x"));
-  Serial.print(pkt.command, HEX);
-  Serial.print(F(" RSSI: "));
-  Serial.print(pkt.rssi);
-  Serial.print(F(" SNR: "));
-  Serial.print(pkt.snr);
-  Serial.print(F(" SF: "));
-  Serial.println(pkt.sf);
+void logMessage(const char* msg) {
+  Serial.println(msg);
 }
